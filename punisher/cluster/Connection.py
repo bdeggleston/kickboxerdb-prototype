@@ -3,11 +3,10 @@ class Connection(object):
     class ClosedException(Exception):
         """ Called when the connection is closed """
 
-    def __init__(self, sckt, address):
+    def __init__(self, sckt):
         from socket import socket
         assert isinstance(sckt, socket)
         self.socket = sckt
-        self.address = address
         self.is_open = True
 
     @classmethod

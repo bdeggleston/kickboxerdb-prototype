@@ -12,7 +12,7 @@ class BaseNode(object):
     def __hash__(self):
         return hash(self.node_id)
 
-    def execute_retrieval_instruction(self, instruction, key, args):
+    def execute_retrieval_instruction(self, instruction, key, args, digest=False):
         raise NotImplementedError
 
     def execute_mutation_instruction(self, instruction, key, args, timestamp):

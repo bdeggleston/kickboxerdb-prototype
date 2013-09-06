@@ -74,7 +74,7 @@ class RedisStore(object):
     def __contains__(self, item):
         return item in self._data
 
-    def set(self, key, val, timestamp=None):
+    def set(self, key, val, timestamp):
         # if timestamp was provided, check against
         # check against existing value
         val = Value(val, timestamp)
@@ -88,7 +88,7 @@ class RedisStore(object):
         """ :rtype: Value """
         return self._data.get(key)
 
-    def delete(self, key, timestamp=None):
+    def delete(self, key, timestamp):
         # if timestamp was provided, check against
         # check against existing value
         val = Value(None, timestamp)
@@ -106,6 +106,7 @@ class RedisStore(object):
         :param local: local data received
         :return: tuple (<resolved_value>, [<resolution instruction>])
         """
+        _ = args
         remote_values = [Value.deserialize(v) for v in values]
         all_values = remote_values + ([local] if local else [])
         value = cls.resolve(all_values)
