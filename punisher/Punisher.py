@@ -1,5 +1,7 @@
 from punisher.cluster.LocalNode import LocalNode
 from punisher.cluster.Cluster import Cluster
+from punisher.cluster.PeerServer import PeerServer
+from punisher.cluster.ClientServer import RedisClientServer
 
 
 class Punisher(object):
@@ -16,7 +18,27 @@ class Punisher(object):
         self.client_address = client_address
         self.peer_address = peer_address
         #todo: load some config
-        self.local_node = LocalNode(address=self.peer_address)
+        self.local_node = LocalNode(address=self.peer_address, token=token)
+        self.seed_peers = seed_peers
+        self.replication_factor = replication_factor
         self.cluster = Cluster(self.local_node, self.replication_factor)
+        self.peer_server = PeerServer(self.peer_address)
+        self.client_server = RedisClientServer(self.client_address, cluster=self.cluster) if self.client_address else None
+
+    def start(self):
+        self.peer_server.start()
+        self.cluster.start()
+        if self.client_server: self.client_server.start()
+
+    def stop(self):
+        self.peer_server.stop()
+        self.cluster.stop()
+        if self.client_server: self.client_server.stop()
+
+    def kill(self):
+        self.peer_server.kill()
+        self.cluster.kill()
+        if self.client_server: self.client_server.kill()
+
 
 
