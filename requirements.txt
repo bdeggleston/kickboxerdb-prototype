@@ -1,0 +1,3 @@
+#install libevent first
+gevent==0.13.8
+msgpack-python==0.3.0
