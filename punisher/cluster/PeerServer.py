@@ -15,34 +15,27 @@ class PeerServer(StreamServer):
         self.cluster = cluster
 
     def _accept_connection(self, conn):
-        message = messages.Message.read(conn)
-        if not isinstance(message, messages.ConnectionRequest):
+        response = messages.Message.read(conn)
+        if not isinstance(response, messages.ConnectionRequest):
             messages.ConnectionRefusedResponse(
                 self.node_id,
                 'first message must be a ConnectionMessage'
             ).send(conn)
             conn.close()
             return
-        assert isinstance(message, messages.ConnectionRequest)
+        assert isinstance(response, messages.ConnectionRequest)
 
-        node_id = message.sender
+        node_id = response.sender
 
         # accept response and identify
         messages.ConnectionAcceptedResponse(sender_id=self.cluster.local_node.node_id).send(conn)
 
         if self.cluster.local_node.name: print self.cluster.local_node.name,
         print node_id, 'connected'
+        return self.cluster.add_node(node_id, response.sender_address, response.token, name=response.sender_name)
 
-        if node_id not in self.cluster:
-            self.cluster.add_node(node_id, message.sender_address, message.sen)
-        peer = self.peers.get(node_id)
-        if peer is None:
-            peer = self.connect_to_peer(message.sender_address, expected_node_id=node_id)
-        else:
-            if peer.status == Peer.Status.CLOSED:
-                peer.connect()
-
-        return peer
+    def _execute_request(self, request, peer):
+        pass
 
     def handle(self, socket, address):
         """
@@ -52,5 +45,7 @@ class PeerServer(StreamServer):
         :param address:
         """
         conn = Connection(socket)
-        pass
+        peer = self._accept_connection(conn)
+        while True:
+            request = messages.Message.read(conn)
 
