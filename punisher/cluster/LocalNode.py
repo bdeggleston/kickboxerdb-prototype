@@ -1,6 +1,7 @@
 from punisher.cluster.BaseNode import BaseNode
 
 from punisher.store.RedisStore import RedisStore
+from punisher.utils import deserialize_timestamp
 
 
 class LocalNode(BaseNode):
@@ -18,10 +19,12 @@ class LocalNode(BaseNode):
         self.store = RedisStore()
 
     def execute_retrieval_instruction(self, instruction, key, args, digest=False):
-        return super(LocalNode, self).execute_retrieval_instruction(instruction, key, args)
+        return getattr(self.store, instruction)(key, *args)
 
     def execute_mutation_instruction(self, instruction, key, args, timestamp):
-        return super(LocalNode, self).execute_mutation_instruction(instruction, key, args, timestamp)
+        if isinstance(timestamp, (int, long)):
+            timestamp = deserialize_timestamp(timestamp)
+        return getattr(self.store, instruction)(key, *args, timestamp=timestamp)
 
 
 
