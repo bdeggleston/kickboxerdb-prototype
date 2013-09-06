@@ -45,6 +45,14 @@ class Cluster(object):
         pass
 
     def add_node(self, node_id, address, token, name=None):
+        """
+        :param node_id:
+        :param address:
+        :param token:
+        :param name:
+
+        :rtype: RemoteNode
+        """
         #setdefault is threadsafe
         return self.peers.setdefault(
             node_id, RemoteNode(
@@ -83,15 +91,12 @@ class Cluster(object):
                         response.token,
                         name=response.name
                     )
-                    peer.connect()
+                    peer.add_conn(conn)
                     return peer
             except Connection.ClosedException:
                 pass
             except AssertionError:
                 pass
-
-            pass
-        pass
 
     def execute_retrieval_instruction(self, instruction, key, args):
         pass
