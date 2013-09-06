@@ -1,4 +1,7 @@
+from punisher.cluster import messages
+from punisher.cluster.Connection import Connection
 from punisher.cluster.LocalNode import LocalNode
+from punisher.cluster.RemoteNode import RemoteNode
 
 __author__ = 'bdeggleston'
 
@@ -25,13 +28,69 @@ class Cluster(object):
     def __contains__(self, item):
         return item in self.peers
 
-    def add_node(self, node_id, address, name):
+    def start(self):
+        #TODO: connect to peers
+        if self.peers:
+            #TODO: check that existing peers are still up
+            pass
+        else:
+            self.connect_to_seeds()
+
+    def stop(self):
+        # TODO: disconnect from peers
         pass
 
-    def remove_node(self, node):
+    def kill(self):
+        # TODO: kill connections to peers
         pass
+
+    def add_node(self, node_id, address, token, name=None):
+        #setdefault is threadsafe
+        return self.peers.setdefault(
+            node_id, RemoteNode(
+                address,
+                token=token,
+                node_id=node_id,
+                name=name,
+                local_node=self.local_node
+            )
+        )
+
+    def remove_node(self, node_id):
+        return self.peers.pop(node_id, None)
+
+    def get_node(self, node_id):
+        return self.peers.get(node_id)
 
     def _refresh_ring(self):
+        pass
+
+    def connect_to_seeds(self):
+        for address in self.seed_peers:
+            try:
+                conn = Connection.connect(address)
+                messages.ConnectionRequest(
+                    self.local_node.node_id,
+                    self.local_node.address,
+                    sender_name=self.local_node.name
+                ).send(conn)
+                response = messages.Message.read(conn)
+                assert isinstance(response, messages.ConnectionAcceptedResponse)
+                if response.sender not in self:
+                    peer = self.add_node(
+                        response.sender,
+                        address,
+                        response.token,
+                        name=response.name
+                    )
+                    peer.connect()
+                    return peer
+            except Connection.ClosedException:
+                pass
+            except AssertionError:
+                pass
+
+            pass
         pass
 
     def execute_retrieval_instruction(self, instruction, key, args):

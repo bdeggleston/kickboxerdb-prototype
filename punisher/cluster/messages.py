@@ -116,14 +116,20 @@ class NoopMessage(Message):
 class ConnectionRequest(Message):
     __message_type__ = 1
 
-    def __init__(self, sender_id, sender_address, sender_name=None, message_id=None):
+    def __init__(self, sender_id, sender_address, token, sender_name=None, message_id=None):
         super(ConnectionRequest, self).__init__(sender_id, message_id)
         self.sender_address = tuple(sender_address)
         self.sender_name = sender_name
+        self.token = token
 
 
 class ConnectionAcceptedResponse(Message):
     __message_type__ = 2
+
+    def __init__(self, sender_id, token, name, message_id=None):
+        super(ConnectionAcceptedResponse, self).__init__(sender_id, message_id)
+        self.token = token
+        self.name = name
 
 
 class ConnectionRefusedResponse(Message):
