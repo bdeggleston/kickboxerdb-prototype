@@ -50,6 +50,15 @@ class RemoteNode(BaseNode):
         if conn.is_open:
             self.pool.put(conn)
 
+    def add_conn(self, conn):
+        assert isinstance(conn, Connection)
+        self.pool.put(conn)
+
+    def connect(self):
+        """ establishes a connection with this remote node """
+        with self._connection as _: pass
+
+
     def execute_retrieval_instruction(self, instruction, key, args, digest=False):
         #TODO: send message
         pass
