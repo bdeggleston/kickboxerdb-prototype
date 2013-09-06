@@ -1,4 +1,3 @@
-
 class Connection(object):
 
     class ClosedException(Exception):
