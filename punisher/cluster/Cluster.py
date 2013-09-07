@@ -1,3 +1,5 @@
+import gevent
+
 from punisher.cluster import messages
 from punisher.cluster.Connection import Connection
 from punisher.cluster.LocalNode import LocalNode
@@ -27,8 +29,19 @@ class Cluster(object):
 
         self.is_online = False
 
+        # self.nanny = None
+
     def __contains__(self, item):
         return item in self.nodes
+
+    def __len__(self):
+        return len(self.nodes)
+
+    # def _nanny(self):
+    #     """ background thread that checks the status of other nodes """
+    #     import ipdb; ipdb.set_trace()
+    #     print 'nanny'
+    #     gevent.sleep(0.1)
 
     def start(self):
         #TODO: connect to peers
@@ -39,6 +52,7 @@ class Cluster(object):
             self.connect_to_seeds()
 
         self.is_online = True
+        # self.nanny = gevent.spawn(self._nanny)
 
     def stop(self):
         # TODO: disconnect from peers
