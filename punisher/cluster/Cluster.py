@@ -19,30 +19,34 @@ class Cluster(object):
 
         assert isinstance(local_node, LocalNode)
         self.local_node = local_node
-        self.peers = {self.local_node.token: self.local_node}
+        self.nodes = {self.local_node.token: self.local_node}
 
         # cluster token data
         self.min_token = None
         self.max_token = None
 
+        self.is_online = False
+
     def __contains__(self, item):
-        return item in self.peers
+        return item in self.nodes
 
     def start(self):
         #TODO: connect to peers
-        if self.peers:
+        if self.nodes:
             #TODO: check that existing peers are still up
             pass
         else:
             self.connect_to_seeds()
 
+        self.is_online = True
+
     def stop(self):
         # TODO: disconnect from peers
-        pass
+        self.is_online = False
 
     def kill(self):
         # TODO: kill connections to peers
-        pass
+        self.is_online = False
 
     def add_node(self, node_id, address, token, name=None):
         """
@@ -54,7 +58,7 @@ class Cluster(object):
         :rtype: RemoteNode
         """
         #setdefault is threadsafe
-        return self.peers.setdefault(
+        return self.nodes.setdefault(
             node_id, RemoteNode(
                 address,
                 token=token,
@@ -65,10 +69,10 @@ class Cluster(object):
         )
 
     def remove_node(self, node_id):
-        return self.peers.pop(node_id, None)
+        return self.nodes.pop(node_id, None)
 
     def get_node(self, node_id):
-        return self.peers.get(node_id)
+        return self.nodes.get(node_id)
 
     def _refresh_ring(self):
         pass
