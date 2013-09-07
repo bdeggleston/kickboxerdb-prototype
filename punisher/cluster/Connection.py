@@ -1,20 +1,20 @@
+from gevent import socket
+
 class Connection(object):
 
     class ClosedException(Exception):
         """ Called when the connection is closed """
 
     def __init__(self, sckt):
-        from socket import socket
-        assert isinstance(sckt, socket)
+        assert isinstance(sckt, socket.socket)
         self.socket = sckt
         self.is_open = True
 
     @classmethod
     def connect(cls, address):
-        from socket import socket
-        s = socket()
+        s = socket.socket()
         s.connect(address)
-        return Connection(s, address)
+        return Connection(s)
 
     def read(self, size):
         if not self.is_open:

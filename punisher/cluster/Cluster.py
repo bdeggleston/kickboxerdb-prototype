@@ -21,7 +21,7 @@ class Cluster(object):
 
         assert isinstance(local_node, LocalNode)
         self.local_node = local_node
-        self.nodes = {self.local_node.token: self.local_node}
+        self.nodes = {self.local_node.node_id: self.local_node}
 
         # cluster token data
         self.min_token = None
@@ -37,6 +37,18 @@ class Cluster(object):
     def __len__(self):
         return len(self.nodes)
 
+    @property
+    def node_id(self):
+        return self.local_node.node_id
+
+    @property
+    def token(self):
+        return self.local_node.token
+
+    @property
+    def name(self):
+        return self.local_node.name
+
     # def _nanny(self):
     #     """ background thread that checks the status of other nodes """
     #     import ipdb; ipdb.set_trace()
@@ -44,13 +56,12 @@ class Cluster(object):
     #     gevent.sleep(0.1)
 
     def start(self):
-        #TODO: connect to peers
-        if self.nodes:
-            #TODO: check that existing peers are still up
-            pass
-        else:
+        #TODO: check that existing peers are still up
+        if not [n for n in self.nodes.values() if isinstance(n, RemoteNode)]:
             self.connect_to_seeds()
 
+        self.get_peers()
+        self.discover_peers()
         self.is_online = True
         # self.nanny = gevent.spawn(self._nanny)
 
@@ -88,6 +99,23 @@ class Cluster(object):
     def get_node(self, node_id):
         return self.nodes.get(node_id)
 
+    def get_peers(self):
+        return [p for p in self.nodes.values() if not isinstance(p, LocalNode)]
+
+    def discover_peers(self):
+        """ finds the other nodes in the cluster """
+        request = messages.DiscoverPeersRequest(self.node_id)
+        for peer in self.nodes.values():
+            if isinstance(peer, LocalNode):
+                continue
+            assert isinstance(peer, RemoteNode)
+            response = peer.send_message(request)
+            if not isinstance(response, messages.DiscoverPeersResponse):
+                continue
+            assert isinstance(response, messages.DiscoverPeersResponse)
+            for entry in response.get_peer_data():
+                self.add_node(entry.node_id, entry.address, entry.token, entry.name)
+
     def _refresh_ring(self):
         pass
 
@@ -98,19 +126,21 @@ class Cluster(object):
                 messages.ConnectionRequest(
                     self.local_node.node_id,
                     self.local_node.address,
+                    self.local_node.token,
                     sender_name=self.local_node.name
                 ).send(conn)
                 response = messages.Message.read(conn)
+
                 assert isinstance(response, messages.ConnectionAcceptedResponse)
-                if response.sender not in self:
-                    peer = self.add_node(
-                        response.sender,
-                        address,
-                        response.token,
-                        name=response.name
-                    )
-                    peer.add_conn(conn)
-                    return peer
+                peer = self.add_node(
+                    response.sender,
+                    address,
+                    response.token,
+                    name=response.name
+                )
+                peer.add_conn(conn)
+                return peer
+
             except Connection.ClosedException:
                 pass
             except AssertionError:

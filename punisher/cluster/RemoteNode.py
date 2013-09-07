@@ -28,6 +28,13 @@ class RemoteNode(BaseNode):
         self.local_node = local_node
         self.pool = Queue()
 
+        # status tracking
+        self.last_ping = None
+
+    @property
+    def peer_data(self):
+        return self.address, self.node_id, self.token, self.name
+
     @contextmanager
     def _connection(self):
         """
@@ -58,6 +65,15 @@ class RemoteNode(BaseNode):
         """ establishes a connection with this remote node """
         with self._connection as _: pass
 
+    def send_message(self, request):
+        """
+        :param request:
+        :type request: messages.Message
+        """
+        assert isinstance(request, messages.Message)
+        with self._connection() as conn:
+            request.send(conn)
+            return messages.Message.read(conn)
 
     def execute_retrieval_instruction(self, instruction, key, args, digest=False):
         #TODO: send message

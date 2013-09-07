@@ -120,7 +120,7 @@ class ConnectionRequest(Message):
         super(ConnectionRequest, self).__init__(sender_id, message_id)
         self.sender_address = tuple(sender_address)
         self.sender_name = sender_name
-        self.token = token
+        self.token = str(token) if token else None
 
 
 class ConnectionAcceptedResponse(Message):
@@ -150,12 +150,12 @@ class DiscoverPeersResponse(Message):
     includes data about all known peers
 
     peers will be a tuple of this format:
-        (<(address, port)>, <node_id>)
+        (<(address, port)>, <node_id>, <token>, <name>)
 
     """
     __message_type__ = 5
 
-    PeerData = namedtuple('PeerData', ['address', 'node_id'])
+    PeerData = namedtuple('PeerData', ['address', 'node_id', 'token', 'name'])
 
     def __init__(self, sender_id, peers_list, message_id=None):
         super(DiscoverPeersResponse, self).__init__(sender_id, message_id)
@@ -163,16 +163,23 @@ class DiscoverPeersResponse(Message):
 
         #post process peers list data
         for peer in peers_list:
-            address, node_id = peer
+            address, node_id, token, name = peer
             self.peers_list.append(DiscoverPeersResponse.PeerData(
                 tuple(address),
-                Message._uuid_bytes(node_id)
+                Message._uuid_bytes(node_id),
+                str(token) if token else  None,
+                name
             ))
 
     def get_peer_data(self):
         """ returns peer data with the node_id as a UUID """
         return [
-            DiscoverPeersResponse.PeerData(tuple(p.address), uuid.UUID(bytes=p.node_id))
+            DiscoverPeersResponse.PeerData(
+                tuple(p.address),
+                uuid.UUID(bytes=p.node_id),
+                long(p.token) if p.token else None,
+                p.name
+            )
             for p in self.peers_list
         ]
 

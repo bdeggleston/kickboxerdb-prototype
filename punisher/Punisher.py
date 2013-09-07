@@ -1,3 +1,5 @@
+import gevent
+
 from punisher.cluster.LocalNode import LocalNode
 from punisher.cluster.Cluster import Cluster
 from punisher.cluster.PeerServer import PeerServer
@@ -21,7 +23,6 @@ class Punisher(object):
         self.peer_address = peer_address
         #todo: load some config
         self.name = name
-        self.node_id = node_id
         self.local_node = LocalNode(
             address=self.peer_address,
             node_id=node_id,
@@ -42,6 +43,10 @@ class Punisher(object):
         self.client_server = RedisClientServer(
             self.client_address,
             cluster=self.cluster) if self.client_address else None
+
+    @property
+    def node_id(self):
+        return self.local_node.node_id
 
     def start(self):
         self.peer_server.start()

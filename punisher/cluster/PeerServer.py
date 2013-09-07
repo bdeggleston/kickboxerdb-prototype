@@ -14,6 +14,18 @@ class PeerServer(StreamServer):
         assert isinstance(cluster, Cluster)
         self.cluster = cluster
 
+    @property
+    def node_id(self):
+        return self.cluster.node_id
+
+    @property
+    def token(self):
+        return self.cluster.token
+
+    @property
+    def name(self):
+        return self.cluster.name
+
     def _accept_connection(self, conn):
         response = messages.Message.read(conn)
         if not isinstance(response, messages.ConnectionRequest):
@@ -28,14 +40,38 @@ class PeerServer(StreamServer):
         node_id = response.sender
 
         # accept response and identify
-        messages.ConnectionAcceptedResponse(sender_id=self.cluster.local_node.node_id).send(conn)
+        messages.ConnectionAcceptedResponse(
+            self.node_id,
+            self.token,
+            self.name
+        ).send(conn)
 
         if self.cluster.local_node.name: print self.cluster.local_node.name,
         print node_id, 'connected'
-        return self.cluster.add_node(node_id, response.sender_address, response.token, name=response.sender_name)
+
+        return self.cluster.add_node(
+            node_id,
+            response.sender_address,
+            long(response.token) if response.token else None,
+            name=response.sender_name
+        )
 
     def _execute_request(self, request, peer):
-        pass
+        """
+        handles incoming request messages
+
+        :param request:
+        :param peer:
+        :rtype: messages.Message
+        """
+
+        if isinstance(request, messages.NoopMessage):
+            return messages.NoopMessage(self.node_id)
+        elif isinstance(request, messages.DiscoverPeersRequest):
+            peer_data = [p.peer_data for p in self.cluster.get_peers()]
+            return messages.DiscoverPeersResponse(self.node_id, peer_data)
+        else:
+            return messages.ErrorResponse(self.node_id, 'unexpected message: {}'.format(request))
 
     def handle(self, socket, address):
         """
@@ -48,4 +84,7 @@ class PeerServer(StreamServer):
         peer = self._accept_connection(conn)
         while True:
             request = messages.Message.read(conn)
+            response = self._execute_request(request, peer)
+            response.send(conn)
+
 
