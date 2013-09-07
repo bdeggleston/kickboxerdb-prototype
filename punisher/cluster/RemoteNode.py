@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 
-from gevent.queue import Queue
+from gevent.queue import Queue, Empty
 
 from punisher.cluster.BaseNode import BaseNode
 from punisher.cluster.Connection import Connection
@@ -41,12 +41,14 @@ class RemoteNode(BaseNode):
         context manager that pulls a connection from this remote node's connection
         pool, and returns it to the pool when it's done being used
         """
-        conn = self.pool.get(block=False)
-        if conn is None:
+        try:
+            conn = self.pool.get(block=False)
+        except Empty:
             conn = Connection.connect(self.address)
             messages.ConnectionRequest(
                 self.local_node.node_id,
                 self.local_node.address,
+                self.local_node.token,
                 sender_name=self.local_node.name
             ).send(conn)
             response = messages.Message.read(conn)
@@ -63,7 +65,7 @@ class RemoteNode(BaseNode):
 
     def connect(self):
         """ establishes a connection with this remote node """
-        with self._connection as _: pass
+        with self._connection() as _: pass
 
     def send_message(self, request):
         """

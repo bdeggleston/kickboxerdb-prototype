@@ -114,7 +114,10 @@ class Cluster(object):
                 continue
             assert isinstance(response, messages.DiscoverPeersResponse)
             for entry in response.get_peer_data():
-                self.add_node(entry.node_id, entry.address, entry.token, entry.name)
+                if entry.node_id == self.node_id:
+                    continue
+                new_peer = self.add_node(entry.node_id, entry.address, entry.token, entry.name)
+                new_peer.connect()
 
     def _refresh_ring(self):
         pass
