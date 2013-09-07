@@ -114,7 +114,7 @@ class NoopMessage(Message):
 
 
 class ConnectionRequest(Message):
-    __message_type__ = 1
+    __message_type__ = 101
 
     def __init__(self, sender_id, sender_address, token, sender_name=None, message_id=None):
         super(ConnectionRequest, self).__init__(sender_id, message_id)
@@ -124,7 +124,7 @@ class ConnectionRequest(Message):
 
 
 class ConnectionAcceptedResponse(Message):
-    __message_type__ = 2
+    __message_type__ = 102
 
     def __init__(self, sender_id, token, name, message_id=None):
         super(ConnectionAcceptedResponse, self).__init__(sender_id, message_id)
@@ -133,7 +133,7 @@ class ConnectionAcceptedResponse(Message):
 
 
 class ConnectionRefusedResponse(Message):
-    __message_type__ = 3
+    __message_type__ = 103
 
     def __init__(self, sender_id, reason, message_id=None):
         super(ConnectionRefusedResponse, self).__init__(sender_id, message_id)
@@ -142,7 +142,7 @@ class ConnectionRefusedResponse(Message):
 
 class DiscoverPeersRequest(Message):
     """ asks for a list of peer addresses and ids """
-    __message_type__ = 4
+    __message_type__ = 201
 
 
 class DiscoverPeersResponse(Message):
@@ -153,7 +153,7 @@ class DiscoverPeersResponse(Message):
         (<(address, port)>, <node_id>, <token>, <name>)
 
     """
-    __message_type__ = 5
+    __message_type__ = 202
 
     PeerData = namedtuple('PeerData', ['address', 'node_id', 'token', 'name'])
 
@@ -272,14 +272,6 @@ class MutationOperationResponse(Message):
         self.result = result
 
 
-class ErrorResponse(Message):
-    __message_type__ = 200
-
-    def __init__(self, sender_id, reason, message_id=None):
-        super(ErrorResponse, self).__init__(sender_id, message_id)
-        self.reason = reason
-
-
 class AnnounceTokenRequest(Message):
     __message_type__ = 300
 
@@ -305,6 +297,14 @@ class RequestTokenResponse(Message):
     def __init__(self, sender_id, token, message_id=None):
         super(RequestTokenResponse, self).__init__(sender_id, message_id)
         self.token = token
+
+
+class ErrorResponse(Message):
+    __message_type__ = 999
+
+    def __init__(self, sender_id, reason, message_id=None):
+        super(ErrorResponse, self).__init__(sender_id, message_id)
+        self.reason = reason
 
 
 
