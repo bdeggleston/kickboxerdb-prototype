@@ -1,5 +1,6 @@
-from punisher.cluster.BaseNode import BaseNode
+from datetime import datetime
 
+from punisher.cluster.BaseNode import BaseNode
 from punisher.store.RedisStore import RedisStore
 from punisher.utils import deserialize_timestamp
 
@@ -17,6 +18,10 @@ class LocalNode(BaseNode):
 
         # storage
         self.store = RedisStore()
+
+    def ping(self):
+        self.last_ping = datetime.utcnow()
+        self.ping_time = 0
 
     def execute_retrieval_instruction(self, instruction, key, args, digest=False):
         return getattr(self.store, instruction)(key, *args)

@@ -184,6 +184,14 @@ class DiscoverPeersResponse(Message):
         ]
 
 
+class PingRequest(Message):
+    __message_type__ = 210
+
+
+class PingResponse(Message):
+    __message_type__ = 211
+
+
 class JoinClusterRequest(Message):
     """ sent to the cluster when a node wants to join the active cluster and process requests """
     __message_type__ = 6

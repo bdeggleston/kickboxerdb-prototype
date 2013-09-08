@@ -9,8 +9,15 @@ class BaseNode(object):
         self.name = name
         self.token = token
 
+        # status tracking
+        self.last_ping = None
+        self.ping_time = None
+
     def __hash__(self):
         return hash(self.node_id)
+
+    def ping(self):
+        raise NotImplementedError
 
     def execute_retrieval_instruction(self, instruction, key, args, digest=False):
         raise NotImplementedError

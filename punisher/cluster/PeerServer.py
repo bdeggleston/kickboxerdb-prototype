@@ -1,3 +1,5 @@
+import uuid
+
 from gevent.server import StreamServer
 
 from punisher.cluster.Cluster import Cluster
@@ -13,6 +15,8 @@ class PeerServer(StreamServer):
         super(PeerServer, self).__init__(listener, self.handle, backlog, spawn, **ssl_args)
         assert isinstance(cluster, Cluster)
         self.cluster = cluster
+
+        self.connections = {}
 
     @property
     def node_id(self):
@@ -46,9 +50,6 @@ class PeerServer(StreamServer):
             self.name
         ).send(conn)
 
-        if self.cluster.local_node.name: print self.cluster.local_node.name,
-        print node_id, 'connected'
-
         return self.cluster.add_node(
             node_id,
             response.sender_address,
@@ -67,6 +68,10 @@ class PeerServer(StreamServer):
 
         if isinstance(request, messages.NoopMessage):
             return messages.NoopMessage(self.node_id)
+
+        elif isinstance(request, messages.PingRequest):
+            return messages.PingResponse(self.node_id)
+
         elif isinstance(request, messages.DiscoverPeersRequest):
             peer_data = [p.peer_data for p in self.cluster.get_peers()]
             return messages.DiscoverPeersResponse(self.node_id, peer_data)
@@ -81,10 +86,29 @@ class PeerServer(StreamServer):
         :param address:
         """
         conn = Connection(socket)
-        peer = self._accept_connection(conn)
-        while True:
-            request = messages.Message.read(conn)
-            response = self._execute_request(request, peer)
-            response.send(conn)
+        connection_id = uuid.uuid1()
+        self.connections[connection_id] = conn
+        try:
+            peer = self._accept_connection(conn)
+            while True:
+                request = messages.Message.read(conn)
+                response = self._execute_request(request, peer)
+                response.send(conn)
+        except Connection.ClosedException:
+            pass
+        finally:
+            conn.close()
+            try:
+                del self.connections[connection_id]
+            except KeyError:
+                pass
+
+    def kill(self):
+        super(PeerServer, self).kill()
+        for conn in self.connections.viewvalues():
+            conn.close()
+        self.connections.clear()
+
+
 
 

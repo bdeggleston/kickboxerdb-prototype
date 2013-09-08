@@ -1,5 +1,3 @@
-import gevent
-
 from punisher.cluster.LocalNode import LocalNode
 from punisher.cluster.Cluster import Cluster
 from punisher.cluster.PeerServer import PeerServer
@@ -29,6 +27,7 @@ class Punisher(object):
             name=name,
             token=token,
         )
+
         self.seed_peers = seed_peers
         self.replication_factor = replication_factor
         self.cluster = Cluster(
@@ -36,10 +35,12 @@ class Punisher(object):
             seed_peers=self.seed_peers,
             replication_factor=self.replication_factor
         )
+
         self.peer_server = PeerServer(
             self.peer_address,
             cluster=self.cluster
         )
+
         self.client_server = RedisClientServer(
             self.client_address,
             cluster=self.cluster) if self.client_address else None
@@ -59,9 +60,9 @@ class Punisher(object):
         if self.client_server: self.client_server.stop()
 
     def kill(self):
-        self.peer_server.kill()
+        self.peer_server.stop()
         self.cluster.kill()
-        if self.client_server: self.client_server.kill()
+        if self.client_server: self.client_server.stop()
 
 
 

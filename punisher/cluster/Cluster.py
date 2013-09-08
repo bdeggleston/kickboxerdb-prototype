@@ -1,11 +1,7 @@
-import gevent
-
 from punisher.cluster import messages
 from punisher.cluster.Connection import Connection
 from punisher.cluster.LocalNode import LocalNode
 from punisher.cluster.RemoteNode import RemoteNode
-
-__author__ = 'bdeggleston'
 
 
 class Cluster(object):
@@ -29,8 +25,6 @@ class Cluster(object):
 
         self.is_online = False
 
-        # self.nanny = None
-
     def __contains__(self, item):
         return item in self.nodes
 
@@ -49,12 +43,6 @@ class Cluster(object):
     def name(self):
         return self.local_node.name
 
-    # def _nanny(self):
-    #     """ background thread that checks the status of other nodes """
-    #     import ipdb; ipdb.set_trace()
-    #     print 'nanny'
-    #     gevent.sleep(0.1)
-
     def start(self):
         #TODO: check that existing peers are still up
         if not [n for n in self.nodes.values() if isinstance(n, RemoteNode)]:
@@ -63,7 +51,6 @@ class Cluster(object):
         self.get_peers()
         self.discover_peers()
         self.is_online = True
-        # self.nanny = gevent.spawn(self._nanny)
 
     def stop(self):
         # TODO: disconnect from peers
@@ -83,7 +70,7 @@ class Cluster(object):
         :rtype: RemoteNode
         """
         #setdefault is threadsafe
-        return self.nodes.setdefault(
+        node = self.nodes.setdefault(
             node_id, RemoteNode(
                 address,
                 token=token,
@@ -92,11 +79,14 @@ class Cluster(object):
                 local_node=self.local_node
             )
         )
+        node.connect()
+        return node
 
     def remove_node(self, node_id):
         return self.nodes.pop(node_id, None)
 
     def get_node(self, node_id):
+        """ :rtype: RemoteNode """
         return self.nodes.get(node_id)
 
     def get_peers(self):
