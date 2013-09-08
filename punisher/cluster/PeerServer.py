@@ -50,12 +50,14 @@ class PeerServer(StreamServer):
             self.name
         ).send(conn)
 
-        return self.cluster.add_node(
+        peer = self.cluster.add_node(
             node_id,
             response.sender_address,
             long(response.token) if response.token else None,
             name=response.sender_name
         )
+        peer.connect()
+        return peer
 
     def _execute_request(self, request, peer):
         """

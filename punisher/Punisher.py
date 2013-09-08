@@ -55,14 +55,14 @@ class Punisher(object):
         if self.client_server: self.client_server.start()
 
     def stop(self):
+        if self.client_server: self.client_server.stop()
         self.peer_server.stop()
         self.cluster.stop()
-        if self.client_server: self.client_server.stop()
 
     def kill(self):
+        if self.client_server: self.client_server.stop()
         self.peer_server.stop()
         self.cluster.kill()
-        if self.client_server: self.client_server.stop()
 
 
 

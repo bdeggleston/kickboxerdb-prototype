@@ -54,6 +54,9 @@ class Cluster(object):
 
     def stop(self):
         # TODO: disconnect from peers
+        for node in self.nodes.values():
+            if isinstance(node, LocalNode): continue
+            node.stop()
         self.is_online = False
 
     def kill(self):

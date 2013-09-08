@@ -1,6 +1,7 @@
 from socket import error as socketerror
 from gevent import socket
 
+
 class Connection(object):
 
     class ClosedException(Exception):
