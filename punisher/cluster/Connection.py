@@ -1,3 +1,4 @@
+from socket import error as socketerror
 from gevent import socket
 
 class Connection(object):
@@ -18,13 +19,20 @@ class Connection(object):
 
     def read(self, size):
         if not self.is_open:
-            raise self.ClosedException
+            raise Connection.ClosedException
 
         if size < 1: return
-        result = self.socket.recv(size)
+
+        try:
+            result = self.socket.recv(size)
+        except socketerror:
+            self.is_open = False
+            self.close()
+            raise Connection.ClosedException
+
         if not result:
             self.is_open = False
-            raise self.ClosedException
+            raise Connection.ClosedException
         return result
 
     def read_byte(self):
