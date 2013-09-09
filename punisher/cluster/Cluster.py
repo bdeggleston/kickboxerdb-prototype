@@ -1,3 +1,10 @@
+from datetime import datetime
+
+from blist import sortedset
+import gevent
+from gevent.queue import Queue
+from gevent.pool import Pool
+
 from punisher.cluster import messages
 from punisher.cluster.Connection import Connection
 from punisher.cluster.LocalNode import LocalNode
@@ -8,12 +15,22 @@ class Cluster(object):
     """
     Maintains the local view of the cluster, and coordinates client requests, and
     is responsible for handling replication and routing
+
+    replication_factor of 0 will mirror all data to all nodes
     """
+
+    class ConsistencyLevel(object):
+        ONE     = 1
+        QUORUM  = 2
+        ALL     = 3
+
+    default_read_consistency = ConsistencyLevel.QUORUM
+    default_write_consistency = ConsistencyLevel.QUORUM
 
     def __init__(self, local_node, seed_peers=None, replication_factor=3):
         super(Cluster, self).__init__()
         self.seed_peers = seed_peers or []
-        self.replication_factor = replication_factor
+        self.replication_factor = max(0, replication_factor)
 
         assert isinstance(local_node, LocalNode)
         self.local_node = local_node
@@ -22,6 +39,7 @@ class Cluster(object):
         # cluster token data
         self.min_token = None
         self.max_token = None
+        self.token_ring = None
 
         self.is_online = False
 
@@ -52,16 +70,16 @@ class Cluster(object):
         self.discover_peers()
         self.is_online = True
 
+        self._refresh_ring()
+
     def stop(self):
-        # TODO: disconnect from peers
+        self.is_online = False
         for node in self.nodes.values():
             if isinstance(node, LocalNode): continue
             node.stop()
-        self.is_online = False
 
     def kill(self):
-        # TODO: kill connections to peers
-        self.is_online = False
+        self.stop()
 
     def add_node(self, node_id, address, token, name=None):
         """
@@ -83,10 +101,15 @@ class Cluster(object):
             )
         )
         node.connect()
+        if self.is_online:
+            self._refresh_ring()
         return node
 
     def remove_node(self, node_id):
-        return self.nodes.pop(node_id, None)
+        node = self.nodes.pop(node_id, None)
+        if self.is_online:
+            self._refresh_ring()
+        return node
 
     def get_node(self, node_id):
         """ :rtype: RemoteNode """
@@ -113,7 +136,7 @@ class Cluster(object):
                 new_peer.connect()
 
     def _refresh_ring(self):
-        pass
+        self.token_ring = sortedset(self.nodes.values(), key=lambda n: n.token)
 
     def connect_to_seeds(self):
         for address in self.seed_peers:
@@ -142,8 +165,104 @@ class Cluster(object):
             except AssertionError:
                 pass
 
-    def execute_retrieval_instruction(self, instruction, key, args):
-        pass
+    def get_nodes_for_key(self, token):
+        """
+        returns the owner and replica nodes for the given token
 
-    def execute_mutation_instruction(self, instruction, key, args, timestamp):
-        pass
+        :param token:
+        :return:
+        """
+        if self.replication_factor == 0:
+            return self.nodes.values()
+        ring = self.token_ring
+
+        # bisect returns the the insertion index for
+        # the given token, which is always 1 higher
+        # than the owning node, so we subtract 1 here,
+        # and wrap the value to the length of the ring
+        idx = (ring.bisect(token) - 1) % len(ring)
+        return [ring[(idx + i) % len(ring)] for i in range(self.replication_factor)]
+
+    def _finalize_retrieval(self, instruction, key, args, nodes, gpool):
+        """
+        finalizes the retrieval, repairing any discrepancies in data
+
+        :param instruction:
+        :param key:
+        :param args:
+        :param nodes:
+        :param gpool: greenlet pool
+        :type gpool: Pool
+        """
+        greenlets = gpool.greenlets.copy()
+        gpool.join(timeout=10)
+
+        result_map = {g.node: (g.value, g.exception) for g in greenlets}
+
+    def execute_retrieval_instruction(self, instruction, key, args, consistency=None):
+        """
+        executes a retrieval instruction against the cluster, and performs any
+        reconciliation needed
+
+        :param instruction:
+        :param key:
+        :param args:
+        :return:gg
+        """
+        results = Queue()
+        nodes = self.get_nodes_for_key(key)
+
+        def _execute(node):
+            result = node.execute_retrieval_instruction(instruction, key, args)
+            results.put(result)
+            return result
+        pool = Pool(50)
+        for node in nodes:
+            greenlet = pool.spawn(_execute, node)
+            greenlet.node = node
+        consistency = self.default_read_consistency if consistency is None else consistency
+
+        num_replies = {
+            Cluster.ConsistencyLevel.ONE: 1,
+            Cluster.ConsistencyLevel.QUORUM: (len(nodes) / 2) + 1,
+            Cluster.ConsistencyLevel.ALL: len(nodes)
+        }[consistency]
+
+        replies = []
+        for i in range(num_replies):
+            replies.append(results.get())
+
+        #TODO: resolve any differences
+        result = None
+
+        # spin up a greenlet to resolve any differences
+        gevent.spawn(self._finalize_retrieval, instruction, key, args, nodes, pool)
+
+        return result
+
+    def _finalize_mutation(self, instruction, key, args, timestamp, nodes, gpool):
+        """
+
+        :param instruction:
+        :param key:
+        :param args:
+        :param timestamp:
+        :param nodes:
+        :param gpool:
+        :return:
+        """
+
+    def execute_mutation_instruction(self, instruction, key, args, timestamp=None, consistency=None):
+        """
+
+        :param instruction:
+        :param key:
+        :param args:
+        :param timestamp:
+        :param consistency:
+        :return:
+        """
+        timestamp = timestamp or datetime.utcnow()
+
+        #TODO... everything
+
