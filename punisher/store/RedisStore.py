@@ -64,8 +64,8 @@ class RedisStore(object):
     deleting a value results in a Value with a None value
     """
 
-    retrieval_instructions = ['get']
-    mutation_instructions = ['set', 'delete']
+    retrieval_instructions = frozenset(['get'])
+    mutation_instructions = frozenset(['set', 'delete'])
 
     def __init__(self):
         super(RedisStore, self).__init__()
