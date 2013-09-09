@@ -64,5 +64,8 @@ class Punisher(object):
         self.peer_server.stop()
         self.cluster.kill()
 
+    def replicates_key(self, key):
+        return self.local_node in self.cluster.get_nodes_for_key(key)
+
 
 
