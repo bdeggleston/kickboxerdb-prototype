@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from datetime import datetime
+import pickle
 import time
 
 from gevent.queue import Queue, Empty
@@ -61,6 +62,7 @@ class RemoteNode(BaseNode):
                 raise RemoteNode.ConnectionError
 
         self.connection_set.add(conn)
+        return conn
 
     def _return_connection(self, conn):
         assert isinstance(conn, Connection)
@@ -146,12 +148,26 @@ class RemoteNode(BaseNode):
         self.ping_time = end_time - start_time
 
     def execute_retrieval_instruction(self, instruction, key, args, digest=False):
-        #TODO: send message
-        pass
+        response = self.send_message(
+            messages.RetrievalValueRequest(
+                self.local_node.node_id,
+                instruction,
+                key,
+                args
+            )
+        )
+        assert isinstance(response, messages.RetrievalValueResponse)
+        return pickle.loads(response.data)
 
     def execute_mutation_instruction(self, instruction, key, args, timestamp):
-        #TODO: send message
-        pass
+        response = self.send_message(
+            messages.MutationOperationRequest(
+                self.local_node.node_id,
+                instruction, key, args, timestamp
+            )
+        )
+        assert isinstance(response, messages.MutationOperationResponse)
+        return response.result
 
 
 
