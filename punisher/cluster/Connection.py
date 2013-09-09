@@ -13,9 +13,10 @@ class Connection(object):
         self.is_open = True
 
     @classmethod
-    def connect(cls, address):
+    def connect(cls, address, timeout=30.0):
         s = socket.socket()
         s.connect(address)
+        s.settimeout(timeout)
         return Connection(s)
 
     def read(self, size):

@@ -40,12 +40,8 @@ class RemoteNode(BaseNode):
     def peer_data(self):
         return self.address, self.node_id, self.token, self.name
 
-    @contextmanager
-    def _connection(self):
-        """
-        context manager that pulls a connection from this remote node's connection
-        pool, and returns it to the pool when it's done being used
-        """
+    def _get_connection(self):
+        """ returns a connection, either from the pool, or a new connection """
         if self._stopping:
             raise RemoteNode.ConnectionError('can\'t create connections while node is shutting down')
         try:
@@ -66,10 +62,20 @@ class RemoteNode(BaseNode):
 
         self.connection_set.add(conn)
 
-        yield conn
-
+    def _return_connection(self, conn):
+        assert isinstance(conn, Connection)
         if conn.is_open:
             self.pool.put(conn)
+
+    @contextmanager
+    def _connection(self):
+        """
+        context manager that pulls a connection from this remote node's connection
+        pool, and returns it to the pool when it's done being used
+        """
+        conn = self._get_connection()
+        yield conn
+        self._return_connection(conn)
 
     def add_conn(self, conn):
         assert isinstance(conn, Connection)
@@ -134,7 +140,7 @@ class RemoteNode(BaseNode):
         try:
             response = self.send_message(messages.PingRequest(self.local_node.node_id))
             assert isinstance(response, messages.PingResponse)
-        except Exception:
+        except Connection.ClosedException:
             pass
         end_time = time.time()
         self.ping_time = end_time - start_time
