@@ -1,4 +1,7 @@
+from collections import namedtuple
 from datetime import datetime
+from hashlib import md5
+import struct
 
 from blist import sortedset
 import gevent
@@ -9,6 +12,11 @@ from punisher.cluster import messages
 from punisher.cluster.Connection import Connection
 from punisher.cluster.LocalNode import LocalNode
 from punisher.cluster.RemoteNode import RemoteNode
+
+
+class _TokenContainer(object):
+    def __init__(self, token):
+        self.token = token
 
 
 class Cluster(object):
@@ -60,6 +68,10 @@ class Cluster(object):
     @property
     def name(self):
         return self.local_node.name
+
+    @property
+    def store(self):
+        return self.local_node.store
 
     def start(self):
         #TODO: check that existing peers are still up
@@ -165,22 +177,26 @@ class Cluster(object):
             except AssertionError:
                 pass
 
-    def get_nodes_for_key(self, token):
+    def get_nodes_for_key(self, key):
         """
         returns the owner and replica nodes for the given token
 
-        :param token:
+        :param key:
         :return:
         """
         if self.replication_factor == 0:
             return self.nodes.values()
         ring = self.token_ring
 
+        hsh = md5(key)
+        u1, u2 = struct.unpack('!QQ', hsh.digest())
+        token = (u1 << 64) | u2
+
         # bisect returns the the insertion index for
         # the given token, which is always 1 higher
         # than the owning node, so we subtract 1 here,
         # and wrap the value to the length of the ring
-        idx = (ring.bisect(token) - 1) % len(ring)
+        idx = (ring.bisect(_TokenContainer(token)) - 1) % len(ring)
         return [ring[(idx + i) % len(ring)] for i in range(self.replication_factor)]
 
     def _finalize_retrieval(self, instruction, key, args, nodes, gpool):
@@ -228,10 +244,7 @@ class Cluster(object):
             Cluster.ConsistencyLevel.ALL: len(nodes)
         }[consistency]
 
-        replies = []
-        for i in range(num_replies):
-            replies.append(results.get())
-
+        replies = [results.get() for _ in range(num_replies)]
         #TODO: resolve any differences
         result = None
 
