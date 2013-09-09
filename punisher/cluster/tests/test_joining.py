@@ -1,7 +1,8 @@
-import gevent
 from unittest.case import TestCase
 
-from punisher.cluster.tests.base import BaseNodeTestCase
+import gevent
+
+from punisher.tests.base import BaseNodeTestCase
 from punisher.cluster.RemoteNode import RemoteNode
 
 
