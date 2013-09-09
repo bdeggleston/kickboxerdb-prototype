@@ -1,4 +1,3 @@
-from collections import namedtuple
 from datetime import datetime
 from hashlib import md5
 import struct
@@ -199,21 +198,27 @@ class Cluster(object):
         idx = (ring.bisect(_TokenContainer(token)) - 1) % len(ring)
         return [ring[(idx + i) % len(ring)] for i in range(self.replication_factor)]
 
-    def _finalize_retrieval(self, instruction, key, args, nodes, gpool):
+    def _finalize_retrieval(self, instruction, key, args, gpool, greenlets):
         """
         finalizes the retrieval, repairing any discrepancies in data
 
         :param instruction:
         :param key:
         :param args:
-        :param nodes:
         :param gpool: greenlet pool
         :type gpool: Pool
+        :param greenlets:
+        :type greenlets: list of Greenlet
         """
-        greenlets = gpool.greenlets.copy()
         gpool.join(timeout=10)
 
-        result_map = {g.node: (g.value, g.exception) for g in greenlets}
+        # do we want to do anything with the exception? (g.exception)
+        result_map = {g.node.node_id: g.value for g in greenlets}
+        instructions = getattr(self.store, 'resolve_{}_instructions'.format(instruction))(key, args, result_map)
+        for node_id, instruction_set in instructions.items():
+            node = self.nodes[node_id]
+            for instr in instruction_set:
+                node.execute_mutation_instruction(instr.instruction, instr.key, instr.args, instr.timestamp)
 
     def execute_retrieval_instruction(self, instruction, key, args, consistency=None):
         """
@@ -233,9 +238,11 @@ class Cluster(object):
             results.put(result)
             return result
         pool = Pool(50)
+        greenlets = []
         for node in nodes:
             greenlet = pool.spawn(_execute, node)
             greenlet.node = node
+            greenlets.append(greenlet)
         consistency = self.default_read_consistency if consistency is None else consistency
 
         num_replies = {
@@ -244,25 +251,25 @@ class Cluster(object):
             Cluster.ConsistencyLevel.ALL: len(nodes)
         }[consistency]
 
-        replies = [results.get() for _ in range(num_replies)]
-        #TODO: resolve any differences
-        result = None
+        values = [results.get() for _ in range(num_replies)]
+        # resolve any differences
+        result = getattr(self.store, 'resolve_{}'.format(instruction))(key, args, values)
 
         # spin up a greenlet to resolve any differences
-        gevent.spawn(self._finalize_retrieval, instruction, key, args, nodes, pool)
+        gevent.spawn(self._finalize_retrieval, instruction, key, args, pool, greenlets)
 
-        return result
+        return result.data
 
-    def _finalize_mutation(self, instruction, key, args, timestamp, nodes, gpool):
+    def _finalize_mutation(self, instruction, key, args, timestamp, gpool, greenlets):
         """
 
         :param instruction:
         :param key:
         :param args:
         :param timestamp:
-        :param nodes:
         :param gpool:
-        :return:
+        :param greenlets:
+        :type greenlets: list of Greenlet
         """
 
     def execute_mutation_instruction(self, instruction, key, args, timestamp=None, consistency=None):
