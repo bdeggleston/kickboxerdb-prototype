@@ -1,4 +1,5 @@
 from datetime import datetime
+import random
 
 from punisher.cluster.BaseNode import BaseNode
 from punisher.store.RedisStore import RedisStore
@@ -18,6 +19,7 @@ class LocalNode(BaseNode):
 
         # storage
         self.store = RedisStore()
+        self.token = self.token or random.randint(0, self.max_token)
 
     def ping(self):
         self.last_ping = datetime.utcnow()
