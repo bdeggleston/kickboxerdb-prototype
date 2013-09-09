@@ -1,3 +1,4 @@
+import pickle
 import uuid
 
 from gevent.server import StreamServer
@@ -5,6 +6,8 @@ from gevent.server import StreamServer
 from punisher.cluster.Cluster import Cluster
 from punisher.cluster.Connection import Connection
 from punisher.cluster import messages
+
+from punisher.utils import deserialize_timestamp
 
 
 class PeerServer(StreamServer):
@@ -46,7 +49,7 @@ class PeerServer(StreamServer):
         # accept response and identify
         messages.ConnectionAcceptedResponse(
             self.node_id,
-            self.token,
+            str(self.token),
             self.name
         ).send(conn)
 
@@ -77,6 +80,37 @@ class PeerServer(StreamServer):
         elif isinstance(request, messages.DiscoverPeersRequest):
             peer_data = [p.peer_data for p in self.cluster.get_peers()]
             return messages.DiscoverPeersResponse(self.node_id, peer_data)
+
+        elif isinstance(request, messages.RetrievalValueRequest):
+            if request.instruction not in self.cluster.store.retrieval_instructions:
+                return messages.ErrorResponse(
+                    self.node_id, '{} is not a valid read instruction'.format(request.instruction)
+                )
+
+            val = getattr(self.cluster.store, request.instruction)(request.key, *request.args)
+            if val is None:
+                return messages.UnknownKeyResponse(self.node_id)
+            else:
+                return messages.RetrievalValueResponse(
+                    self.node_id,
+                    pickle.dumps(val, protocol=pickle.HIGHEST_PROTOCOL)
+                )
+
+        elif isinstance(request, messages.MutationOperationRequest):
+            if request.instruction not in self.cluster.store.mutation_instructions:
+                return messages.ErrorResponse(
+                    self.node_id, '{} is not a mutation instruction'.format(request.instruction)
+                )
+
+            try:
+                ts = deserialize_timestamp(request.timestamp) if request.timestamp else request.timestamp
+                result = getattr(self.cluster.store, request.instruction)(request.key, *request.args, timestamp=ts)
+                return messages.MutationOperationResponse(self.node_id, result)
+            except Exception as ex:
+                return messages.ErrorResponse(
+                    self.node_id, 'error processing request: {} \n {}'.format(request, ex)
+                )
+
         else:
             return messages.ErrorResponse(self.node_id, 'unexpected message: {}'.format(request))
 
