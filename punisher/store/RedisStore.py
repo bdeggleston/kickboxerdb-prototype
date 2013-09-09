@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 
 from punisher.utils import serialize_timestamp, deserialize_timestamp
@@ -35,6 +36,9 @@ class Value(object):
         if isinstance(other, Value):
             return other.data == self.data and other.timestamp == self.timestamp
         return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def serialize(self):
         return self.data, serialize_timestamp(self.timestamp)
@@ -99,21 +103,32 @@ class RedisStore(object):
         self._data[key] = val
 
     @classmethod
-    def resolve_get(cls, key, args, values, local):
+    def resolve_get(cls, key, args, values):
         """
         :param args: request args
         :param values: remote data received
         :param local: local data received
-        :return: tuple (<resolved_value>, [<resolution instruction>])
+        :return: resolved values
         """
         _ = args
-        remote_values = [Value.deserialize(v) for v in values]
-        all_values = remote_values + ([local] if local else [])
-        value = cls.resolve(all_values)
+        return cls.resolve(values)
+
+    @classmethod
+    def resolve_get_instructions(cls, key, args, value_map):
+        """
+        resolves all values from all nodes, and returns a list of instructions
+        to send to each one to fix any inconsistencies
+
+        :param key:
+        :param args:
+        :param value_map:
+        :return:
+        """
+        value = cls.resolve_get(key, args, filter(None, value_map.values()))
         if value.data:
-            return value, [Instruction('set', key, [value.data], value.timestamp)]
+            return {nid: [Instruction('set', key, [value.data], value.timestamp)] for nid, val in value_map.items() if val != value}
         else:
-            return value, [Instruction('delete', key, [], value.timestamp)]
+            return {nid: [Instruction('delete', key, [], value.timestamp)] for nid, val in value_map.items() if val != value}
 
     @classmethod
     def resolve(cls, values):
