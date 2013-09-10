@@ -48,6 +48,7 @@ class GetTest(BaseClusteredStorageTest):
             node.start()
         time.sleep(0.01)
 
+        # set the values in the different node stores
         expected = None
         latest_val = None
         latest_ts = None
@@ -69,9 +70,11 @@ class GetTest(BaseClusteredStorageTest):
 
         # check that the cluster reconciled the contested value
         for node in self.nodes:
-            if not node.replicates_key(key): continue
             val = node.cluster.store.get(key)
-            self.assertEqual(val, expected)
+            if node.replicates_key(key):
+                self.assertEqual(val, expected)
+            else:
+                self.assertIsNone(val)
 
     def test_unknown_value(self):
         pass
@@ -95,19 +98,26 @@ class SetTests(BaseClusteredStorageTest):
 
         # sanity check
         for node in self.nodes:
-            self.assertIsNone(node.store.get('a'))
+            self.assertIsNone(node.cluster.store.get('a'))
 
         # set value
-        node0 = self.nodes[0]
-        node0.execute_store_instruction('set', 'a', ['b'])
-        expected = node0.store.get('a')
+        node0 = [n for n in self.nodes if not n.replicates_key('a')][0]
+        node0.cluster.execute_mutation_instruction('set', 'a', ['b'])
 
         # give a sec for update to propagate to peers
         time.sleep(0.01)
 
+        node0 = [n for n in self.nodes if n.replicates_key('a')][0]
+        expected = node0.cluster.store.get('a')
+        self.assertIsNotNone(expected)
+        self.assertEquals(expected.data, 'b')
+
         for node in self.nodes:
-            val = node.store.get('a')
-            self.assertEquals(val, expected)
+            val = node.cluster.store.get('a')
+            if node.replicates_key('a'):
+                self.assertEquals(val, expected)
+            else:
+                self.assertIsNone(val)
 
 
 class DeleteTest(BaseClusteredStorageTest):

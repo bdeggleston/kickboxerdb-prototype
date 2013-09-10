@@ -232,6 +232,7 @@ class Cluster(object):
         """
         results = Queue()
         nodes = self.get_nodes_for_key(key)
+        response_timeout = None
 
         def _execute(node):
             result = node.execute_retrieval_instruction(instruction, key, args)
@@ -251,7 +252,7 @@ class Cluster(object):
             Cluster.ConsistencyLevel.ALL: len(nodes)
         }[consistency]
 
-        values = [results.get() for _ in range(num_replies)]
+        values = [results.get(timeout=response_timeout) for _ in range(num_replies)]
         # resolve any differences
         result = getattr(self.store, 'resolve_{}'.format(instruction))(key, args, values)
 
@@ -271,6 +272,8 @@ class Cluster(object):
         :param greenlets:
         :type greenlets: list of Greenlet
         """
+        #TODO: distribute hints for nonresponsive nodes locally and to other nodes
+        gpool.join(timeout=10)
 
     def execute_mutation_instruction(self, instruction, key, args, timestamp=None, consistency=None):
         """
@@ -283,6 +286,36 @@ class Cluster(object):
         :return:
         """
         timestamp = timestamp or datetime.utcnow()
+        response_timeout = None
 
-        #TODO... everything
+        results = Queue()
+        nodes = self.get_nodes_for_key(key)
+
+        def _execute(node):
+            result = node.execute_mutation_instruction(instruction, key, args, timestamp)
+            results.put(result)
+            return result
+
+        pool = Pool(50)
+        greenlets = []
+        for node in nodes:
+            greenlet = pool.spawn(_execute, node)
+            greenlet.node = node
+            greenlets.append(greenlet)
+        consistency = self.default_read_consistency if consistency is None else consistency
+
+        num_replies = {
+            Cluster.ConsistencyLevel.ONE: 1,
+            Cluster.ConsistencyLevel.QUORUM: (len(nodes) / 2) + 1,
+            Cluster.ConsistencyLevel.ALL: len(nodes)
+        }[consistency]
+
+        values = [results.get(timeout=response_timeout) for _ in range(num_replies)]
+        # resolve any differences
+        result = getattr(self.store, 'resolve_{}'.format(instruction))(key, args, timestamp, values)
+
+        # spin up a greenlet to resolve any differences
+        gevent.spawn(self._finalize_mutation, instruction, key, args, timestamp, pool, greenlets)
+
+        return result.data
 

@@ -49,6 +49,10 @@ class Punisher(object):
     def node_id(self):
         return self.local_node.node_id
 
+    @property
+    def store(self):
+        return self.local_node.store
+
     def start(self):
         self.peer_server.start()
         self.cluster.start()

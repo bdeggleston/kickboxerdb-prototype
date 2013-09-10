@@ -25,7 +25,7 @@ class Value(object):
         :return:
         """
         self.data = value
-        self.timestamp = timestamp or datetime.utcnow()
+        self.timestamp = timestamp
         if isinstance(self.timestamp, (int, long)):
             self.timestamp = self._deserialize_timestamp(self.timestamp)
 
@@ -82,11 +82,15 @@ class RedisStore(object):
         # if timestamp was provided, check against
         # check against existing value
         val = Value(val, timestamp)
+        existing = self._data.get(key)
         if timestamp:
-            existing = self._data.get(key)
             if existing and existing.timestamp >= val.timestamp:
                 return
         self._data[key] = val
+
+    @classmethod
+    def resolve_set(cls, key, args, timestamp, values):
+        return Value(True, None)
 
     def get(self, key):
         """ :rtype: Value """
