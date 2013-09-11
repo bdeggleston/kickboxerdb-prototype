@@ -1,6 +1,7 @@
 from unittest.case import TestCase
 
 import gevent
+from punisher.cluster.cluster import Cluster
 
 from punisher.tests.base import BaseNodeTestCase
 from punisher.cluster.node.remote import RemoteNode
@@ -128,13 +129,17 @@ class NodeActivationTest(BaseNodeTestCase):
 
     def test_single_node_activates_itself(self):
         """ tests that a node started in isolation will set itself to normal """
-        pass
+        node = self.create_node(cluster_status=Cluster.Status.INITIALIZING)
+        node.start()
 
-    def test_initializing_node_is_not_added_to_its_peers_ring(self):
-        pass
+        self.assertEqual(node.cluster.status, Cluster.Status.NORMAL)
 
-    def test_node_is_added_to_peers_ring_after_it_activates_itself(self):
-        pass
+    def test_initializing_node_cluster_views(self):
+        """
+        tests that an initializing node has the correct view of the real token
+        ring and it's streaming token ring
+        """
+
 
 
 class RejoinClusterTests(TestCase):
