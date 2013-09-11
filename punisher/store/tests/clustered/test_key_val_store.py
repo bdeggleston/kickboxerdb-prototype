@@ -14,7 +14,7 @@ class GetTest(BaseClusteredStorageTest):
         """ Tests getting a value when all nodes agree on the value """
         num_nodes = 10
         key = 'a'
-        self._create_nodes(num_nodes)
+        self.create_nodes(num_nodes)
         ts = datetime.utcnow()
 
         for node in self.nodes:
@@ -40,7 +40,7 @@ class GetTest(BaseClusteredStorageTest):
         should be updated
         """
         num_nodes = 10
-        self._create_nodes(num_nodes)
+        self.create_nodes(num_nodes)
         ts = datetime.utcnow()
         key = 'a'
 
@@ -91,7 +91,7 @@ class SetTests(BaseClusteredStorageTest):
         value to it's peers
         """
         num_nodes = 10
-        self._create_nodes(num_nodes)
+        self.create_nodes(num_nodes)
         for node in self.nodes:
             node.start()
         time.sleep(0.01)

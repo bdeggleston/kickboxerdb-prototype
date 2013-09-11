@@ -21,7 +21,7 @@ class BaseNodeTestCase(TestCase):
                 pass
         time.sleep(0.01)
 
-    def _create_node(self, seeds=None, node_id=None, cluster_status=Cluster.Status.NORMAL):
+    def create_node(self, seeds=None, node_id=None, cluster_status=Cluster.Status.NORMAL):
         port = self.next_port
         self.next_port += 1
         if not seeds:
@@ -39,6 +39,6 @@ class BaseNodeTestCase(TestCase):
         self.nodes.append(node)
         return node
 
-    def _create_nodes(self, num, cluster_status=Cluster.Status.NORMAL):
-        return [self._create_node(cluster_status=cluster_status) for i in range(num)]
+    def create_nodes(self, num, cluster_status=Cluster.Status.NORMAL):
+        return [self.create_node(cluster_status=cluster_status) for i in range(num)]
 

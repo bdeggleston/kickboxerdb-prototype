@@ -13,7 +13,7 @@ class ClusterStartupTest(BaseNodeTestCase):
         Tests that multiple seed addresses pointing to a single server
         are resolved to a single peer
         """
-        n1, n2 = self._create_nodes(2)
+        n1, n2 = self.create_nodes(2)
         n1.start()
         n2.start()
         gevent.sleep(0.01)
@@ -27,7 +27,7 @@ class ClusterTest(BaseNodeTestCase):
         """
         Tests that
         """
-        n1, n2 = self._create_nodes(2)
+        n1, n2 = self.create_nodes(2)
         n1.start()
         n2.start()
         gevent.sleep(0.01)
@@ -38,7 +38,7 @@ class ClusterTest(BaseNodeTestCase):
     def test_stopping_peer(self):
         """
         """
-        node0 = self._create_nodes(10)[0]
+        node0 = self.create_nodes(10)[0]
         for node in self.nodes:
             node.start()
 
@@ -73,7 +73,7 @@ class ClusterTest(BaseNodeTestCase):
     def test_rejoining_cluster_after_stop(self):
         """
         """
-        node0 = self._create_nodes(10)[0]
+        node0 = self.create_nodes(10)[0]
         for node in self.nodes:
             node.start()
 
