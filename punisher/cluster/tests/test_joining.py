@@ -124,5 +124,18 @@ class PeerDiscoveryTests(TestCase):
     pass
 
 
+class NodeActivationTest(BaseNodeTestCase):
+
+    def test_single_node_activates_itself(self):
+        """ tests that a node started in isolation will set itself to normal """
+        pass
+
+    def test_initializing_node_is_not_added_to_its_peers_ring(self):
+        pass
+
+    def test_node_is_added_to_peers_ring_after_it_activates_itself(self):
+        pass
+
+
 class RejoinClusterTests(TestCase):
     pass
