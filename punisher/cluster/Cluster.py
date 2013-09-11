@@ -8,9 +8,9 @@ from gevent.queue import Queue
 from gevent.pool import Pool
 
 from punisher.cluster import messages
-from punisher.cluster.Connection import Connection
-from punisher.cluster.LocalNode import LocalNode
-from punisher.cluster.RemoteNode import RemoteNode
+from punisher.cluster.connection import Connection
+from punisher.cluster.node.local import LocalNode
+from punisher.cluster.node.remote import RemoteNode
 
 
 class _TokenContainer(object):
