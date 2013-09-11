@@ -9,6 +9,7 @@ from gevent.pool import Pool
 
 from punisher.cluster import messages
 from punisher.cluster.connection import Connection
+from punisher.cluster.node.base import BaseNode
 from punisher.cluster.node.local import LocalNode
 from punisher.cluster.node.remote import RemoteNode
 
@@ -52,13 +53,28 @@ class Cluster(object):
         self.local_node = local_node
         self.nodes = {self.local_node.node_id: self.local_node}
 
-        # cluster token data
-        self.min_token = None
-        self.max_token = None
+        # this cluster's view of the token ring
         self.token_ring = None
 
         self.is_online = False
         self.status = status
+
+        # initializer bookkeeping
+
+        # the key that this node has been initialized to
+        # initializing currently happens sequentially, ordered
+        # by token, so this can be used to quickly determine
+        # whether this node has a given key, or where to restart
+        # initialization from, if there was an interruption
+        self._initialized_to = None
+
+        # the greenlet running the initialization
+        self._initializer = None
+
+        # this cluster's view of the token ring
+        # as it relates to streaming data to populate
+        # it's own data store on node join
+        self._initializer_ring = None
 
     def __contains__(self, item):
         return item in self.nodes
@@ -82,6 +98,16 @@ class Cluster(object):
     def store(self):
         return self.local_node.store
 
+    @property
+    def is_initializing(self):
+        return self.status == Cluster.Status.INITIALIZING
+
+    @property
+    def is_normal(self):
+        return self.status == Cluster.Status.NORMAL
+
+    # ------------- server start/stop -------------
+
     def start(self):
         #TODO: check that existing peers are still up
         if not [n for n in self.nodes.values() if isinstance(n, RemoteNode)]:
@@ -92,11 +118,6 @@ class Cluster(object):
         self.is_online = True
         self._refresh_ring()
 
-        if self.status == Cluster.Status.INITIALIZING:
-            if len(self.nodes) == 1:
-                self.status = Cluster.Status.NORMAL
-            pass
-
     def stop(self):
         self.is_online = False
         for node in self.nodes.values():
@@ -105,6 +126,8 @@ class Cluster(object):
 
     def kill(self):
         self.stop()
+
+    # ------------- node administration -------------
 
     def add_node(self, node_id, address, token, name=None):
         """
@@ -160,9 +183,6 @@ class Cluster(object):
                 new_peer = self.add_node(entry.node_id, entry.address, entry.token, entry.name)
                 new_peer.connect()
 
-    def _refresh_ring(self):
-        self.token_ring = sortedset(self.nodes.values(), key=lambda n: n.token)
-
     def connect_to_seeds(self):
         for address in self.seed_peers:
             try:
@@ -189,6 +209,31 @@ class Cluster(object):
                 pass
             except AssertionError:
                 pass
+
+    def _refresh_ring(self):
+        """ builds a view of the token ring """
+        self.token_ring = sortedset(self.nodes.values(), key=lambda n: n.token)
+        if self.is_initializing:
+            # if this is the only node, set it to normal
+            # there are no nodes to stream data from
+            if len(self.nodes) == 1:
+                self.status = Cluster.Status.NORMAL
+                self._initializer_ring = None
+                return
+
+            stream_nodes = [n for n in self.nodes.values() if n.node_id != self.node_id]
+            self._initializer_ring = sortedset(stream_nodes, key=lambda n: n.token)
+
+        else:
+            self._initializer_ring = None
+
+    def _initialize_data(self):
+        """ handles populating this node with data when it joins an existing cluster """
+        self._initialized_to = self.token - 1
+        if self.token < 0 or self.token > BaseNode.max_token:
+            self._initialized_to %= BaseNode.max_token
+
+    # ------------- request handling -------------
 
     def get_nodes_for_key(self, key):
         """
@@ -249,6 +294,10 @@ class Cluster(object):
         response_timeout = None
 
         def _execute(node):
+            if node.node_id == self.local_node.node_id and self.is_initializing:
+                raise NotImplementedError(
+                    'performing queries against intializing nodes is not yet supported'
+                )
             result = node.execute_retrieval_instruction(instruction, key, args)
             results.put(result)
             return result
@@ -306,6 +355,10 @@ class Cluster(object):
         nodes = self.get_nodes_for_key(key)
 
         def _execute(node):
+            if node.node_id == self.local_node.node_id and self.is_initializing:
+                raise NotImplementedError(
+                    'performing queries against intializing nodes is not yet supported'
+                )
             result = node.execute_mutation_instruction(instruction, key, args, timestamp)
             results.put(result)
             return result
