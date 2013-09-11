@@ -1,25 +1,30 @@
 from datetime import datetime
-import random
 
 from punisher.cluster.node.base import BaseNode
-from punisher.store.redis import RedisStore
 from punisher.utils import deserialize_timestamp
 
 
 class LocalNode(BaseNode):
 
-    def __init__(self, address=None, node_id=None, name=None, token=None):
+    def __init__(self, store, address=None, node_id=None, name=None, token=None):
         """
+        :param store:
+        :param store: punisher.store.redis.RedisStore
+        :param address:
+        :param address:
+        :param node_id:
         :param node_id:
         :param name:
+        :param name:
+        :param token:
         :param token:
         """
         super(LocalNode, self).__init__(node_id, name, token)
         self.address = address
 
         # storage
-        self.store = RedisStore()
-        self.token = self.token or random.randint(0, self.max_token)
+        self.store = store
+        self.token = self.token or self.store.get_random_token()
 
     def ping(self):
         self.last_ping = datetime.utcnow()

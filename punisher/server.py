@@ -2,6 +2,8 @@ from punisher.cluster.node.local import LocalNode
 from punisher.cluster.cluster import Cluster
 from punisher.cluster.peer_server import PeerServer
 from punisher.cluster.client_server import RedisClientServer
+from punisher.partitioner.md5 import MD5Partitioner
+from punisher.store.redis import RedisStore
 
 
 class Punisher(object):
@@ -17,6 +19,9 @@ class Punisher(object):
                  replication_factor=3,
                  cluster_status=Cluster.Status.INITIALIZING):
         super(Punisher, self).__init__()
+
+        self.partitioner = MD5Partitioner
+        self.store = RedisStore(MD5Partitioner)
 
         self.client_address = client_address
         self.peer_address = peer_address
@@ -50,10 +55,6 @@ class Punisher(object):
     @property
     def node_id(self):
         return self.local_node.node_id
-
-    @property
-    def store(self):
-        return self.local_node.store
 
     def start(self):
         self.peer_server.start()

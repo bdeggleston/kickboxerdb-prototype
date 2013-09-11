@@ -70,8 +70,13 @@ class RedisStore(object):
     retrieval_instructions = frozenset(['get'])
     mutation_instructions = frozenset(['set', 'delete'])
 
-    def __init__(self):
+    def __init__(self, partitioner):
+        """
+        :param partitioner:
+        :type partitioner: punisher.partitioner.base.BasePartitioner
+        """
         super(RedisStore, self).__init__()
+        self.partitioner = partitioner
         self._data = {}
 
     def __contains__(self, item):
@@ -86,6 +91,9 @@ class RedisStore(object):
             if existing and existing.timestamp >= val.timestamp:
                 return
         self._data[key] = val
+
+    def get_random_token(self):
+        return self.partitioner.get_random_token()
 
     @classmethod
     def resolve_set(cls, key, args, timestamp, values):

@@ -42,10 +42,24 @@ class Cluster(object):
 
     def __init__(self,
                  local_node,
+                 partitioner,
                  seed_peers=None,
                  status=Status.INITIALIZING,
                  replication_factor=3):
+        """
+        :param local_node:
+        :type local_node:
+        :param partitioner:
+        :type partitioner: punisher.partitioner.base.BasePartitioner
+        :param seed_peers:
+        :type seed_peers:
+        :param status:
+        :type status:
+        :param replication_factor:
+        :type replication_factor:
+        """
         super(Cluster, self).__init__()
+        self.partitioner = partitioner
         self.seed_peers = seed_peers or []
         self.replication_factor = max(0, replication_factor)
 
@@ -251,9 +265,7 @@ class Cluster(object):
             return self.nodes.values()
         ring = self.token_ring
 
-        hsh = md5(key)
-        u1, u2 = struct.unpack('!QQ', hsh.digest())
-        token = (u1 << 64) | u2
+        token = self.partitioner.get_key_token(key)
 
         # bisect returns the the insertion index for
         # the given token, which is always 1 higher
