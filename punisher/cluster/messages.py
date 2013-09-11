@@ -109,9 +109,10 @@ class Message(object):
         return message
 
 
+# ----------- startup and connection -----------
+
 class NoopMessage(Message):
     __message_type__ = 0
-
 
 class ConnectionRequest(Message):
     __message_type__ = 101
@@ -192,6 +193,142 @@ class PingResponse(Message):
     __message_type__ = 211
 
 
+# ----------- query execution -----------
+
+class RetrievalDigestRequest(Message):
+    __message_type__ = 301
+
+    def __init__(self, sender_id, instruction, key, args, message_id=None):
+        super(RetrievalDigestRequest, self).__init__(sender_id, message_id)
+        self.instruction = instruction
+        self.key = key
+        self.args = args
+
+
+class RetrievalDigestResponse(Message):
+    __message_type__ = 302
+
+    def __init__(self, sender_id, digest, message_id=None):
+        super(RetrievalDigestResponse, self).__init__(sender_id, message_id)
+        self.digest = digest
+
+
+class RetrievalValueRequest(Message):
+    __message_type__ = 303
+
+    def __init__(self, sender_id, instruction, key, args, message_id=None):
+        super(RetrievalValueRequest, self).__init__(sender_id, message_id)
+        self.instruction = instruction
+        self.key = key
+        self.args = args
+
+
+class RetrievalValueResponse(Message):
+    __message_type__ = 304
+
+    def __init__(self, sender_id, data, message_id=None):
+        super(RetrievalValueResponse, self).__init__(sender_id, message_id)
+        self.data = data
+
+
+class UnknownKeyResponse(Message):
+    __message_type__ = 305
+
+
+class MutationOperationRequest(Message):
+    __message_type__ = 306
+
+    def __init__(self, sender_id, instruction, key, args, timestamp=None, message_id=None):
+        super(MutationOperationRequest, self).__init__(sender_id, message_id)
+        self.instruction = instruction
+        self.key = key
+        self.args = args
+        self.timestamp = timestamp
+        if isinstance(timestamp, datetime):
+            self.timestamp = serialize_timestamp(self.timestamp)
+
+
+class MutationOperationResponse(Message):
+    __message_type__ = 307
+
+    def __init__(self, sender_id, result, message_id=None):
+        super(MutationOperationResponse, self).__init__(sender_id, message_id)
+        self.result = result
+
+
+# ----------- node initialization / data migration -----------
+
+class DataMigrateRequest(Message):
+    __message_type__ = 701
+
+    def __init__(self, sender_id, from_token, size=100, message_id=None):
+        """
+        :param from_token: the token to start streaming data from
+        :param size: the number of keys to send
+        """
+        super(DataMigrateRequest, self).__init__(sender_id, message_id)
+        self.from_token = from_token
+        self.size = size
+
+
+class DataMigrationRestpons(Message):
+    __message_type__ = 702
+
+    def __init__(self, sender_id, data, message_id=None):
+        """
+        :param data: the requested data
+        """
+        super(DataMigrationRestpons, self).__init__(sender_id, message_id)
+        self.data = data
+
+
+class RetireKeyRangeRequest(Message):
+    """
+    indicates that the node may remove keys in the given range, if
+    they are no longer owned or replicated by it
+    """
+    __message_type__ = 703
+
+    def __init__(self, sender_id, start_key, stop_key, message_id=None):
+        super(RetireKeyRangeRequest, self).__init__(sender_id, message_id)
+        self.start_key = start_key
+        self.stop_key = stop_key
+
+
+class RetireKeyRangeResponse(Message):
+    __message_type__ = 704
+
+
+# ----------- token discovery / communication -----------
+
+class AnnounceTokenRequest(Message):
+    __message_type__ = 801
+
+    def __init__(self, sender_id, token, message_id=None):
+        super(AnnounceTokenRequest, self).__init__(sender_id, message_id)
+        self.token = token
+
+
+class AnnounceTokenResponse(Message):
+    __message_type__ = 802
+
+
+class RequestTokenRequest(Message):
+    __message_type__ = 803
+
+    def __init__(self, sender_id, message_id=None):
+        super(RequestTokenRequest, self).__init__(sender_id, message_id)
+
+
+class RequestTokenResponse(Message):
+    __message_type__ = 804
+
+    def __init__(self, sender_id, token, message_id=None):
+        super(RequestTokenResponse, self).__init__(sender_id, message_id)
+        self.token = token
+
+# ----------- cluster admin (deprecated?) -----------
+
 class JoinClusterRequest(Message):
     """ sent to the cluster when a node wants to join the active cluster and process requests """
     __message_type__ = 6
@@ -218,94 +355,7 @@ class LeaveClusterRequest(Message):
 class LeaveClusterResponse(Message):
     __message_type__ = 11
 
-
-class RetrievalDigestRequest(Message):
-    __message_type__ = 12
-
-    def __init__(self, sender_id, instruction, key, args, message_id=None):
-        super(RetrievalDigestRequest, self).__init__(sender_id, message_id)
-        self.instruction = instruction
-        self.key = key
-        self.args = args
-
-
-class RetrievalDigestResponse(Message):
-    __message_type__ = 13
-
-    def __init__(self, sender_id, digest, message_id=None):
-        super(RetrievalDigestResponse, self).__init__(sender_id, message_id)
-        self.digest = digest
-
-
-class RetrievalValueRequest(Message):
-    __message_type__ = 14
-
-    def __init__(self, sender_id, instruction, key, args, message_id=None):
-        super(RetrievalValueRequest, self).__init__(sender_id, message_id)
-        self.instruction = instruction
-        self.key = key
-        self.args = args
-
-
-class RetrievalValueResponse(Message):
-    __message_type__ = 15
-
-    def __init__(self, sender_id, data, message_id=None):
-        super(RetrievalValueResponse, self).__init__(sender_id, message_id)
-        self.data = data
-
-
-class UnknownKeyResponse(Message):
-    __message_type__ = 16
-
-
-class MutationOperationRequest(Message):
-    __message_type__ = 17
-
-    def __init__(self, sender_id, instruction, key, args, timestamp=None, message_id=None):
-        super(MutationOperationRequest, self).__init__(sender_id, message_id)
-        self.instruction = instruction
-        self.key = key
-        self.args = args
-        self.timestamp = timestamp
-        if isinstance(timestamp, datetime):
-            self.timestamp = serialize_timestamp(self.timestamp)
-
-
-class MutationOperationResponse(Message):
-    __message_type__ = 18
-
-    def __init__(self, sender_id, result, message_id=None):
-        super(MutationOperationResponse, self).__init__(sender_id, message_id)
-        self.result = result
-
-
-class AnnounceTokenRequest(Message):
-    __message_type__ = 300
-
-    def __init__(self, sender_id, token, message_id=None):
-        super(AnnounceTokenRequest, self).__init__(sender_id, message_id)
-        self.token = token
-
-
-class AnnounceTokenResponse(Message):
-    __message_type__ = 301
-
-
-class RequestTokenRequest(Message):
-    __message_type__ = 302
-
-    def __init__(self, sender_id, message_id=None):
-        super(RequestTokenRequest, self).__init__(sender_id, message_id)
-
-
-class RequestTokenResponse(Message):
-    __message_type__ = 303
-
-    def __init__(self, sender_id, token, message_id=None):
-        super(RequestTokenResponse, self).__init__(sender_id, message_id)
-        self.token = token
-
+# ----------- error responses -----------
 
 class ErrorResponse(Message):
     __message_type__ = 999
