@@ -3,8 +3,6 @@ import uuid
 
 class BaseNode(object):
 
-    max_token = long('f' * 32, 16)
-
     def __init__(self, node_id=None, name=None, token=None):
         super(BaseNode, self).__init__()
         self.node_id = node_id or uuid.uuid4()

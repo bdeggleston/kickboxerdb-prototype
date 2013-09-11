@@ -28,6 +28,7 @@ class Punisher(object):
         #todo: load some config
         self.name = name
         self.local_node = LocalNode(
+            self.store,
             address=self.peer_address,
             node_id=node_id,
             name=name,
@@ -38,6 +39,7 @@ class Punisher(object):
         self.replication_factor = replication_factor
         self.cluster = Cluster(
             self.local_node,
+            self.partitioner,
             seed_peers=self.seed_peers,
             replication_factor=self.replication_factor,
             status=cluster_status

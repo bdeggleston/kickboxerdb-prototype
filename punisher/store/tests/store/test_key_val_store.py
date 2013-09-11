@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from unittest import TestCase
 
+from punisher.partitioner.md5 import MD5Partitioner
 from punisher.store.redis import RedisStore, Value
 from punisher.utils import serialize_timestamp, deserialize_timestamp
 
@@ -22,7 +23,7 @@ class StoreTests(TestCase):
 
     def setUp(self):
         super(StoreTests, self).setUp()
-        self.store = RedisStore()
+        self.store = RedisStore(MD5Partitioner)
 
     def test_set(self):
         ts = datetime.utcnow()
