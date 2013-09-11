@@ -5,8 +5,8 @@ import time
 
 from gevent.queue import Queue, Empty
 
-from punisher.cluster.BaseNode import BaseNode
-from punisher.cluster.Connection import Connection
+from punisher.cluster.node.base import BaseNode
+from punisher.cluster.connection import Connection
 from punisher.cluster import messages
 
 
@@ -26,7 +26,7 @@ class RemoteNode(BaseNode):
         super(RemoteNode, self).__init__(node_id, name, token)
         self.address = address
 
-        from punisher.cluster.LocalNode import LocalNode
+        from punisher.cluster.node.local import LocalNode
         assert isinstance(local_node, LocalNode)
         self.local_node = local_node
         self.pool = Queue()

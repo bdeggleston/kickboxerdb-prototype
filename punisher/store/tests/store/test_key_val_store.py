@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from unittest import TestCase
 
-from punisher.store.RedisStore import RedisStore, Value
+from punisher.store.redis import RedisStore, Value
 from punisher.utils import serialize_timestamp, deserialize_timestamp
 
 

@@ -6,7 +6,7 @@ import uuid
 
 import msgpack
 
-from punisher.cluster.Connection import Connection
+from punisher.cluster.connection import Connection
 from punisher.utils import serialize_timestamp
 
 

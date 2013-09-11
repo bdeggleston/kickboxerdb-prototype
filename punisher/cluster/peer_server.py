@@ -3,8 +3,8 @@ import uuid
 
 from gevent.server import StreamServer
 
-from punisher.cluster.Cluster import Cluster
-from punisher.cluster.Connection import Connection
+from punisher.cluster.cluster import Cluster
+from punisher.cluster.connection import Connection
 from punisher.cluster import messages
 
 from punisher.utils import deserialize_timestamp

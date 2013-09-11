@@ -1,4 +1,3 @@
-from collections import defaultdict
 from datetime import datetime
 
 from punisher.utils import serialize_timestamp, deserialize_timestamp

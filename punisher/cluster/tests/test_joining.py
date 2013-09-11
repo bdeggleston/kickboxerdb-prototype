@@ -3,7 +3,7 @@ from unittest.case import TestCase
 import gevent
 
 from punisher.tests.base import BaseNodeTestCase
-from punisher.cluster.RemoteNode import RemoteNode
+from punisher.cluster.node.remote import RemoteNode
 
 
 class ClusterStartupTest(BaseNodeTestCase):

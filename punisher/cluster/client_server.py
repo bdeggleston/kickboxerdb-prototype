@@ -1,7 +1,7 @@
 from gevent.server import StreamServer
 
-from punisher.cluster.Cluster import Cluster
-from punisher.cluster.Connection import Connection
+from punisher.cluster.cluster import Cluster
+from punisher.cluster.connection import Connection
 
 
 class RedisClientServer(StreamServer):

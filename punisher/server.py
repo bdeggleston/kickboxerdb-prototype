@@ -1,7 +1,7 @@
-from punisher.cluster.LocalNode import LocalNode
-from punisher.cluster.Cluster import Cluster
-from punisher.cluster.PeerServer import PeerServer
-from punisher.cluster.ClientServer import RedisClientServer
+from punisher.cluster.node.local import LocalNode
+from punisher.cluster.cluster import Cluster
+from punisher.cluster.peer_server import PeerServer
+from punisher.cluster.client_server import RedisClientServer
 
 
 class Punisher(object):

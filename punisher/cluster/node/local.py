@@ -1,8 +1,8 @@
 from datetime import datetime
 import random
 
-from punisher.cluster.BaseNode import BaseNode
-from punisher.store.RedisStore import RedisStore
+from punisher.cluster.node.base import BaseNode
+from punisher.store.redis import RedisStore
 from punisher.utils import deserialize_timestamp
 
 

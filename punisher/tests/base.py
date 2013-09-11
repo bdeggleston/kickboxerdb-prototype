@@ -1,8 +1,8 @@
 import time
 from unittest import TestCase
 
-from punisher.cluster.Cluster import Cluster
-from punisher.Punisher import Punisher
+from punisher.cluster.cluster import Cluster
+from punisher.server import Punisher
 
 
 class BaseNodeTestCase(TestCase):
