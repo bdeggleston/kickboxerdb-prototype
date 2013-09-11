@@ -26,6 +26,11 @@ class Cluster(object):
     replication_factor of 0 will mirror all data to all nodes
     """
 
+    class Status(object):
+        INITIALIZING    = 0
+        STREAMING       = 1
+        NORMAL          = 2
+
     class ConsistencyLevel(object):
         ONE     = 1
         QUORUM  = 2
@@ -34,7 +39,11 @@ class Cluster(object):
     default_read_consistency = ConsistencyLevel.QUORUM
     default_write_consistency = ConsistencyLevel.QUORUM
 
-    def __init__(self, local_node, seed_peers=None, replication_factor=3):
+    def __init__(self,
+                 local_node,
+                 seed_peers=None,
+                 status=Status.INITIALIZING,
+                 replication_factor=3):
         super(Cluster, self).__init__()
         self.seed_peers = seed_peers or []
         self.replication_factor = max(0, replication_factor)
@@ -49,6 +58,7 @@ class Cluster(object):
         self.token_ring = None
 
         self.is_online = False
+        self.status = status
 
     def __contains__(self, item):
         return item in self.nodes
@@ -80,8 +90,12 @@ class Cluster(object):
         self.get_peers()
         self.discover_peers()
         self.is_online = True
-
         self._refresh_ring()
+
+        if self.status == Cluster.Status.INITIALIZING:
+            if len(self.nodes) == 1:
+                self.status = Cluster.Status.NORMAL
+            pass
 
     def stop(self):
         self.is_online = False

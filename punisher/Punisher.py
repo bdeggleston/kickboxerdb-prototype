@@ -14,7 +14,8 @@ class Punisher(object):
                  seed_peers=None,
                  name=None,
                  node_id=None,
-                 replication_factor=3):
+                 replication_factor=3,
+                 cluster_status=Cluster.Status.INITIALIZING):
         super(Punisher, self).__init__()
 
         self.client_address = client_address
@@ -33,7 +34,8 @@ class Punisher(object):
         self.cluster = Cluster(
             self.local_node,
             seed_peers=self.seed_peers,
-            replication_factor=self.replication_factor
+            replication_factor=self.replication_factor,
+            status=cluster_status
         )
 
         self.peer_server = PeerServer(
