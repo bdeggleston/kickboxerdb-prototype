@@ -1,5 +1,7 @@
 import time
 from unittest import TestCase
+
+from punisher.cluster.Cluster import Cluster
 from punisher.Punisher import Punisher
 
 
@@ -19,7 +21,7 @@ class BaseNodeTestCase(TestCase):
                 pass
         time.sleep(0.01)
 
-    def _create_node(self, seeds=None, node_id=None):
+    def _create_node(self, seeds=None, node_id=None, cluster_status=Cluster.Status.NORMAL):
         port = self.next_port
         self.next_port += 1
         if not seeds:
@@ -31,11 +33,12 @@ class BaseNodeTestCase(TestCase):
             peer_address=('localhost', port),
             seed_peers=seeds,
             name='Node{}'.format(port),
-            node_id=node_id
+            node_id=node_id,
+            cluster_status=cluster_status
         )
         self.nodes.append(node)
         return node
 
-    def _create_nodes(self, num):
-        return [self._create_node() for i in range(num)]
+    def _create_nodes(self, num, cluster_status=Cluster.Status.NORMAL):
+        return [self._create_node(cluster_status=cluster_status) for i in range(num)]
 
