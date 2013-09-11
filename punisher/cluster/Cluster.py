@@ -118,6 +118,11 @@ class Cluster(object):
         self.is_online = True
         self._refresh_ring()
 
+        # migrate data from existing nodes
+        # if this node is initializing
+        if self.is_initializing:
+            self._initializer = gevent.spawn(self._initialize_data)
+
     def stop(self):
         self.is_online = False
         for node in self.nodes.values():
