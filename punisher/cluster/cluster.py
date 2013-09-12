@@ -169,7 +169,7 @@ class Cluster(object):
             )
         )
         node.connect()
-        self.discover_peers()
+        self.discover_peers(only=node)
         self._refresh_ring()
         return node
 
@@ -185,13 +185,19 @@ class Cluster(object):
     def get_peers(self):
         return [p for p in self.nodes.values() if not isinstance(p, LocalNode)]
 
-    def discover_peers(self):
+    def discover_peers(self, only=None):
         """ finds the other nodes in the cluster """
         request = messages.DiscoverPeersRequest(self.node_id)
+
+        if only is not None and not isinstance(only, (list, tuple)):
+            only = [only]
+
         for peer in self.nodes.values():
             if isinstance(peer, LocalNode):
                 continue
             assert isinstance(peer, RemoteNode)
+            if only and peer not in only:
+                continue
             response = peer.send_message(request)
             if not isinstance(response, messages.DiscoverPeersResponse):
                 continue
