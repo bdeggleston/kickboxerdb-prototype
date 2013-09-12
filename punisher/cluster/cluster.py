@@ -126,9 +126,8 @@ class Cluster(object):
         #TODO: check that existing peers are still up
         if not [n for n in self.nodes.values() if isinstance(n, RemoteNode)]:
             self.connect_to_seeds()
-
-        self.get_peers()
-        self.discover_peers()
+        else:
+            self.discover_peers()
         self.is_online = True
         self._refresh_ring()
 
@@ -157,25 +156,26 @@ class Cluster(object):
 
         :rtype: RemoteNode
         """
+        if node_id in self.nodes:
+            return self.nodes[node_id]
         #setdefault is threadsafe
         node = self.nodes.setdefault(
             node_id, RemoteNode(
                 address,
-                token=token,
+                token=long(token),
                 node_id=node_id,
                 name=name,
                 local_node=self.local_node
             )
         )
         node.connect()
-        if self.is_online:
-            self._refresh_ring()
+        self.discover_peers()
+        self._refresh_ring()
         return node
 
     def remove_node(self, node_id):
         node = self.nodes.pop(node_id, None)
-        if self.is_online:
-            self._refresh_ring()
+        self._refresh_ring()
         return node
 
     def get_node(self, node_id):
@@ -215,6 +215,8 @@ class Cluster(object):
                 response = messages.Message.read(conn)
 
                 assert isinstance(response, messages.ConnectionAcceptedResponse)
+                assert response.token is not None
+
                 peer = self.add_node(
                     response.sender,
                     address,
@@ -226,8 +228,8 @@ class Cluster(object):
 
             except Connection.ClosedException:
                 pass
-            except AssertionError:
-                pass
+            # except AssertionError:
+            #     pass
 
     def _refresh_ring(self):
         """ builds a view of the token ring """

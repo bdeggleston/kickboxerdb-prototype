@@ -14,12 +14,14 @@ class BaseNodeTestCase(TestCase):
 
     def tearDown(self):
         super(BaseNodeTestCase, self).tearDown()
-        for node in self.nodes:
-            try:
-                node.stop()
-            except Exception:
-                pass
-        time.sleep(0.01)
+        if self.nodes:
+            for node in self.nodes:
+                try:
+                    node.stop()
+                except Exception:
+                    pass
+            while any([n.peer_server.started for n in self.nodes]):
+                time.sleep(0.1)
 
     def create_node(self, seeds=None, node_id=None, cluster_status=Cluster.Status.NORMAL):
         port = self.next_port

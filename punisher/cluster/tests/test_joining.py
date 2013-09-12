@@ -121,8 +121,45 @@ class ClusterTest(BaseNodeTestCase):
             self.assertIn(node0.node_id, node.cluster)
 
 
-class PeerDiscoveryTests(TestCase):
-    pass
+class PeerDiscoveryTests(BaseNodeTestCase):
+
+    def test_uniform_peer_discovery(self):
+        """ tests that all peers discover each other when starting up """
+        self.create_nodes(10)
+        expected = {n.node_id for n in self.nodes}
+
+        for node in self.nodes:
+            node.start()
+
+        #yield
+        gevent.sleep(0)
+
+        for node in self.nodes:
+            actual = set(node.cluster.nodes.keys())
+            self.assertEqual(expected, actual)
+
+    def test_uniform_token_ring_view(self):
+        """ tests that all peers have the same view of the token ring after starting up """
+        self.create_nodes(10)
+
+        for node in self.nodes:
+            node.start()
+
+        # for node in self.nodes:
+        #     node.cluster.discover_peers()
+
+        #yield
+        gevent.sleep(0)
+
+        expected = {n.node_id: n.token for n in self.nodes}
+
+        for i, node in enumerate(self.nodes):
+            self.maxDiff = None
+            actual = {n.node_id: n.token for n in node.cluster.token_ring}
+            self.assertEqual(len(expected), len(actual))
+            self.assertEqual(set(expected.keys()), set(actual.keys()))
+            self.assertEqual(set(expected.values()), set(actual.values()))
+            self.assertEqual(expected, actual)
 
 
 class NodeActivationTest(BaseNodeTestCase):

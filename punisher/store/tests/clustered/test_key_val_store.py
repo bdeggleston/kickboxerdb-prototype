@@ -12,6 +12,17 @@ class GetTest(BaseClusteredStorageTest):
 
     def test_get_agreed_upon_value(self):
         """ Tests getting a value when all nodes agree on the value """
+        """
+        Traceback (most recent call last):
+          File "/Users/bdeggleston/.workon/punisher1/lib/python2.7/site-packages/gevent/greenlet.py", line 390, in run
+            result = self._run(*self.args, **self.kwargs)
+          File "/Users/bdeggleston/code/punisher1/punisher/cluster/cluster.py", line 318, in _execute
+            result = node.execute_retrieval_instruction(instruction, key, args)
+          File "/Users/bdeggleston/code/punisher1/punisher/cluster/node/remote.py", line 159, in execute_retrieval_instruction
+            assert isinstance(response, messages.RetrievalValueResponse)
+        AssertionError
+        <Greenlet at 0x10c6c1050: _execute(<punisher.cluster.node.remote.RemoteNode object at)> failed with AssertionError
+        """
         num_nodes = 10
         key = 'a'
         self.create_nodes(num_nodes)
@@ -19,7 +30,13 @@ class GetTest(BaseClusteredStorageTest):
 
         for node in self.nodes:
             node.start()
-        time.sleep(0.01)
+        time.sleep(0.1)
+
+        #check replication responsibility
+        expected_replicas = {n.node_id for n in self.nodes if n.replicates_key(key)}
+        for node in self.nodes:
+            replicas = {n.node_id for n in node.cluster.get_nodes_for_key(key)}
+            self.assertEqual(replicas, expected_replicas)
 
         for node in self.nodes:
             if not node.replicates_key(key): continue
@@ -39,6 +56,17 @@ class GetTest(BaseClusteredStorageTest):
         values across the cluster, and the nodes with out of date data
         should be updated
         """
+        """
+        Traceback (most recent call last):
+          File "/Users/bdeggleston/.workon/punisher1/lib/python2.7/site-packages/gevent/greenlet.py", line 390, in run
+            result = self._run(*self.args, **self.kwargs)
+          File "/Users/bdeggleston/code/punisher1/punisher/cluster/cluster.py", line 318, in _execute
+            result = node.execute_retrieval_instruction(instruction, key, args)
+          File "/Users/bdeggleston/code/punisher1/punisher/cluster/node/remote.py", line 159, in execute_retrieval_instruction
+            assert isinstance(response, messages.RetrievalValueResponse)
+        AssertionError
+        <Greenlet at 0x10cf95cd0: _execute(<punisher.cluster.node.remote.RemoteNode object at)> failed with AssertionError
+        """
         num_nodes = 10
         self.create_nodes(num_nodes)
         ts = datetime.utcnow()
@@ -51,7 +79,6 @@ class GetTest(BaseClusteredStorageTest):
         # set the values in the different node stores
         expected = None
         latest_val = None
-        latest_ts = None
         num = 0
         for node in self.nodes:
             if not node.replicates_key(key): continue

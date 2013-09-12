@@ -58,8 +58,13 @@ class Punisher(object):
     def node_id(self):
         return self.local_node.node_id
 
+    @property
+    def token(self):
+        return self.local_node.token
+
     def start(self):
         self.peer_server.start()
+        self.peer_server.start_event.wait(timeout=1)
         self.cluster.start()
         if self.client_server: self.client_server.start()
 

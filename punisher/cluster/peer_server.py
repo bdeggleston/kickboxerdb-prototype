@@ -1,6 +1,7 @@
 import pickle
 import uuid
 
+from gevent.event import Event
 from gevent.server import StreamServer
 
 from punisher.cluster.cluster import Cluster
@@ -20,6 +21,7 @@ class PeerServer(StreamServer):
         self.cluster = cluster
 
         self.connections = {}
+        self.start_event = Event()
 
     @property
     def node_id(self):
@@ -53,10 +55,11 @@ class PeerServer(StreamServer):
             self.name
         ).send(conn)
 
+        assert response.token is not None
         peer = self.cluster.add_node(
             node_id,
             response.sender_address,
-            long(response.token) if response.token else None,
+            long(response.token),
             name=response.sender_name
         )
         peer.connect()
@@ -138,6 +141,11 @@ class PeerServer(StreamServer):
                 del self.connections[connection_id]
             except KeyError:
                 pass
+
+    def start_accepting(self):
+        super(PeerServer, self).start_accepting()
+        self.start_event.set()
+
 
     def kill(self):
         super(PeerServer, self).kill()
