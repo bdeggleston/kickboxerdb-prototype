@@ -1,4 +1,7 @@
+from collections import defaultdict
 from datetime import datetime
+
+from blist import sorteddict
 
 from punisher.utils import serialize_timestamp, deserialize_timestamp
 
@@ -81,6 +84,40 @@ class RedisStore(object):
 
     def __contains__(self, item):
         return item in self._data
+
+    @property
+    def token_map(self):
+        """
+        returns a map of token -> {key[1], ...key[n]}
+        :return:
+        """
+        #TODO: keep track of this during normal storage operation
+        # using a set in case there are token collisions
+        token_map = defaultdict(set)
+        for key in self._data.keys():
+            token_map[self.partitioner.get_key_token(key)].add(key)
+        token_map = sorteddict(token_map)
+        return token_map
+
+    def get_token_range(self, start_token, count):
+        """
+        returns raw value data for the given token range, sorted
+        by token, then by key (for collisions)
+        :param start_token:
+        :param count:
+        :return:
+        """
+        assert count > 1
+        token_map = self.token_map
+
+        rdata = []
+        key_view = token_map.viewkeys()
+        start_idx = key_view.bisect_left(start_token)
+        stop_idx = start_idx + count
+        for token in key_view[start_idx: stop_idx]:
+            for key in sorted(list(token_map[token])):
+                rdata.append((key, self._data.get(key)))
+        return rdata
 
     def set(self, key, val, timestamp):
         # if timestamp was provided, check against
