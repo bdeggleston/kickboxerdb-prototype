@@ -41,6 +41,25 @@ notes:
     Because of this, when receiving a write command, the new node should immediately
     fetch and reconcile existing nodes data, then perform it's write normally
 
+## migrating data to a new node
+
+The new node is responsible for handling the process.
+
+Given this ring change:
+```
+old ring:
+[     n1     ][     n2     ][     n3     ][     n4     ]
+
+new ring
+[     n1     ][  n2 ][  nZ ][     n3     ][     n4     ]
+```
+
+nZ will find the old token owner for it's token, in this case n2, and it's replica
+nodes, in this case n3 & n4, assuming a replication factor of 3.
+
+nZ will determine it's total token range (owned and replicated), and begin querying
+each node for token ranges (start token, max token and size) the max token
+
 # nanny process
 each cluster (node) should have a background process that picks up after the node.
 It is responsible for:

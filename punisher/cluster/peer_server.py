@@ -114,6 +114,19 @@ class PeerServer(StreamServer):
                     self.node_id, 'error processing request: {} \n {}'.format(request, ex)
                 )
 
+        elif isinstance(request, messages.DataMigrateRequest):
+            return messages.DataMigrationResponse(
+                self.node_id,
+                pickle.dumps(
+                    self.cluster.get_migration_data(
+                        request.from_token_long,
+                        request.max_token_long,
+                        request.size
+                    ),
+                    protocol=pickle.HIGHEST_PROTOCOL
+                )
+            )
+
         else:
             return messages.ErrorResponse(self.node_id, 'unexpected message: {}'.format(request))
 

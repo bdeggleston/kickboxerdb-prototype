@@ -261,24 +261,33 @@ class MutationOperationResponse(Message):
 class DataMigrateRequest(Message):
     __message_type__ = 701
 
-    def __init__(self, sender_id, from_token, size=100, message_id=None):
+    def __init__(self, sender_id, from_token, max_token, size=100, message_id=None):
         """
         :param from_token: the token to start streaming data from
         :param size: the number of keys to send
         """
         super(DataMigrateRequest, self).__init__(sender_id, message_id)
-        self.from_token = from_token
+        self.from_token = str(from_token)
+        self.max_token = str(max_token)
         self.size = size
 
+    @property
+    def from_token_long(self):
+        return long(self.from_token)
 
-class DataMigrationRestpons(Message):
+    @property
+    def max_token_long(self):
+        return long(self.max_token)
+
+
+class DataMigrationResponse(Message):
     __message_type__ = 702
 
     def __init__(self, sender_id, data, message_id=None):
         """
         :param data: the requested data
         """
-        super(DataMigrationRestpons, self).__init__(sender_id, message_id)
+        super(DataMigrationResponse, self).__init__(sender_id, message_id)
         self.data = data
 
 
@@ -289,10 +298,18 @@ class RetireKeyRangeRequest(Message):
     """
     __message_type__ = 703
 
-    def __init__(self, sender_id, start_key, stop_key, message_id=None):
+    def __init__(self, sender_id, start_token, stop_token, message_id=None):
         super(RetireKeyRangeRequest, self).__init__(sender_id, message_id)
-        self.start_key = start_key
-        self.stop_key = stop_key
+        self.start_token = str(start_token)
+        self.stop_token = str(stop_token)
+
+    @property
+    def start_token_long(self):
+        return long(self.start_token)
+
+    @property
+    def stop_token_long(self):
+        return long(self.stop_token)
 
 
 class RetireKeyRangeResponse(Message):

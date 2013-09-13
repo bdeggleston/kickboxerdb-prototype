@@ -67,3 +67,7 @@ class StoreTests(TestCase):
         assert val.data == num_values - 1
         assert val.timestamp == ts + timedelta(seconds=num_values-1)
 
+class TokenTests(TestCase):
+
+    def test_get_token_range(self):
+        pass

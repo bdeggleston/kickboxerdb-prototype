@@ -1,5 +1,6 @@
 from datetime import datetime
 from hashlib import md5
+import pickle
 import struct
 
 from blist import sortedset
@@ -110,6 +111,7 @@ class Cluster(object):
 
     @property
     def store(self):
+        """ :rtype: punisher.store.base.BaseStore """
         return self.local_node.store
 
     @property
@@ -254,13 +256,78 @@ class Cluster(object):
         else:
             self._initializer_ring = None
 
+    def get_migration_data(self, start_token, max_token, size):
+        return self.store.get_token_range(start_token, max_token, size)
+
+    def get_token_range(self):
+        """
+        find the range of tokens that this cluster's node owns or replicates
+        """
+        idx = [n.node_id for n in self.token_ring].index(self.node_id)
+        if len(self.token_ring) <= self.replication_factor:
+            return 0, self.partitioner.max_token
+
+        tokens = [self.token_ring[(idx + i) % len(self.token_ring)].token for i in range(self.replication_factor + 1)]
+        return tokens[0], tokens[-1]
+
     def _initialize_data(self):
         """ handles populating this node with data when it joins an existing cluster """
-        self._initialized_to = self.token - 1
-        if self.token < 0 or self.token > BaseNode.max_token:
-            self._initialized_to %= BaseNode.max_token
+        self._initialized_to = self._initialized_to or (self.token - 1) % self.partitioner.max_token
+
+        # get the min and max tokens
+        min_token, max_token = self.get_token_range()
+        start_token = (min_token - 1) % self.partitioner.max_token
+
+        def migrate_data(start, stop):
+            for node in self._initializer_ring:
+                local_min = start
+                while True:
+                    response = node.send_message(messages.DataMigrateRequest(
+                        self.node_id,
+                        local_min,
+                        stop
+                    ))
+                    assert isinstance(response, messages.DataMigrationResponse)
+
+                    data = pickle.loads(response.data)
+                    # return if we've gotten everything we
+                    # need from this node
+                    if len(data) == 0:
+                        break
+
+                    # otherwise, throw it into the store
+                    for key, val in data:
+                        local_min = max(local_min, self.partitioner.get_key_token(key))
+                        self.store.set_and_reconcile_raw_value(key, val)
+                        # if self.node_id in [n.node_id for n in self.get_nodes_for_key(key)]:
+                        #     self.store.set_and_reconcile_raw_value(key, val)
+
+                    local_min += 1
+                    # TODO: retire old data on the node
+
+
+        if min_token < max_token:
+            migrate_data(start_token, max_token)
+        else:
+            migrate_data(max_token, self.partitioner.max_token)
+            migrate_data(0, min_token)
 
     # ------------- request handling -------------
+
+    def get_nodes_for_token(self, token, ring=None):
+        """
+
+        :param token:
+        :param ring:
+        :return:
+        """
+        ring = ring or self.token_ring
+        # bisect returns the the insertion index for
+        # the given token, which is always 1 higher
+        # than the owning node, so we subtract 1 here,
+        # and wrap the value to the length of the ring
+        idx = (ring.bisect(_TokenContainer(token)) - 1) % len(ring)
+        return [ring[(idx + i) % len(ring)] for i in range(self.replication_factor)]
 
     def get_nodes_for_key(self, key):
         """
@@ -271,16 +338,10 @@ class Cluster(object):
         """
         if self.replication_factor == 0:
             return self.nodes.values()
-        ring = self.token_ring
 
         token = self.partitioner.get_key_token(key)
+        return self.get_nodes_for_token(token)
 
-        # bisect returns the the insertion index for
-        # the given token, which is always 1 higher
-        # than the owning node, so we subtract 1 here,
-        # and wrap the value to the length of the ring
-        idx = (ring.bisect(_TokenContainer(token)) - 1) % len(ring)
-        return [ring[(idx + i) % len(ring)] for i in range(self.replication_factor)]
 
     def _finalize_retrieval(self, instruction, key, args, gpool, greenlets):
         """

@@ -99,7 +99,7 @@ class RedisStore(object):
         token_map = sorteddict(token_map)
         return token_map
 
-    def get_token_range(self, start_token, count):
+    def get_token_range(self, start_token, max_token, count):
         """
         returns raw value data for the given token range, sorted
         by token, then by key (for collisions)
@@ -115,9 +115,14 @@ class RedisStore(object):
         start_idx = key_view.bisect_left(start_token)
         stop_idx = start_idx + count
         for token in key_view[start_idx: stop_idx]:
+            if token > max_token:
+                break
             for key in sorted(list(token_map[token])):
                 rdata.append((key, self._data.get(key)))
         return rdata
+
+    def set_and_reconcile_raw_value(self, key, value):
+        self._data[key] = value
 
     def set(self, key, val, timestamp):
         # if timestamp was provided, check against
