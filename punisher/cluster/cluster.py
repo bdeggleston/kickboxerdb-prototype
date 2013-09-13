@@ -365,7 +365,7 @@ class Cluster(object):
             for instr in instruction_set:
                 node.execute_mutation_instruction(instr.instruction, instr.key, instr.args, instr.timestamp)
 
-    def execute_retrieval_instruction(self, instruction, key, args, consistency=None):
+    def execute_retrieval_instruction(self, instruction, key, args, consistency=None, synchronous=False):
         """
         executes a retrieval instruction against the cluster, and performs any
         reconciliation needed
@@ -406,7 +406,9 @@ class Cluster(object):
         result = getattr(self.store, 'resolve_{}'.format(instruction))(key, args, values)
 
         # spin up a greenlet to resolve any differences
-        gevent.spawn(self._finalize_retrieval, instruction, key, args, pool, greenlets)
+        reconciler = gevent.spawn(self._finalize_retrieval, instruction, key, args, pool, greenlets)
+        if synchronous:
+            reconciler.join()
 
         return result.data
 
@@ -424,7 +426,7 @@ class Cluster(object):
         #TODO: distribute hints for nonresponsive nodes locally and to other nodes
         gpool.join(timeout=10)
 
-    def execute_mutation_instruction(self, instruction, key, args, timestamp=None, consistency=None):
+    def execute_mutation_instruction(self, instruction, key, args, timestamp=None, consistency=None, synchronous=False):
         """
 
         :param instruction:
@@ -468,7 +470,9 @@ class Cluster(object):
         result = getattr(self.store, 'resolve_{}'.format(instruction))(key, args, timestamp, values)
 
         # spin up a greenlet to resolve any differences
-        gevent.spawn(self._finalize_mutation, instruction, key, args, timestamp, pool, greenlets)
+        reconciler = gevent.spawn(self._finalize_mutation, instruction, key, args, timestamp, pool, greenlets)
+        if synchronous:
+            reconciler.join()
 
         return result.data
 

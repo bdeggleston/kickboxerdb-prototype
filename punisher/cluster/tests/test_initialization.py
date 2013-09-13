@@ -29,9 +29,8 @@ class InitializationIntegrationTests(BaseNodeTestCase):
             node = self.nodes[i % len(self.nodes)]
             key = random_string()
             val = random_string()
-            node.cluster.execute_mutation_instruction('set', key, [val])
+            node.cluster.execute_mutation_instruction('set', key, [val], synchronous=True)
             total_data[key] = val
-        gevent.sleep(0)
 
         new_node = self.create_node(cluster_status=Cluster.Status.INITIALIZING)
         new_node.start()
