@@ -7,7 +7,6 @@ from punisher.partitioner.base import BasePartitioner
 
 class MD5Partitioner(BasePartitioner):
 
-    max_token = long('f' * 32, 16)
 
     @classmethod
     def get_key_token(cls, key):
