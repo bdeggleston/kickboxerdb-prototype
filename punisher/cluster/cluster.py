@@ -377,7 +377,7 @@ class Cluster(object):
         """
         results = Queue()
         nodes = self.get_nodes_for_key(key)
-        response_timeout = None
+        response_timeout = 10.0
 
         def _execute(node):
             if node.node_id == self.local_node.node_id and self.is_initializing:
@@ -437,7 +437,7 @@ class Cluster(object):
         :return:
         """
         timestamp = timestamp or datetime.utcnow()
-        response_timeout = None
+        response_timeout = 10.0
 
         results = Queue()
         nodes = self.get_nodes_for_key(key)
