@@ -307,10 +307,12 @@ class Cluster(object):
 
 
         if min_token < max_token:
-            migrate_data(start_token, max_token)
+            migrate_data(min_token, max_token)
         else:
             migrate_data(max_token, self.partitioner.max_token)
             migrate_data(0, min_token)
+
+        self.status = Cluster.Status.NORMAL
 
     # ------------- request handling -------------
 
