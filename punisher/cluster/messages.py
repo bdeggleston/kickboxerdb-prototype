@@ -121,7 +121,7 @@ class ConnectionRequest(Message):
         super(ConnectionRequest, self).__init__(sender_id, message_id)
         self.sender_address = tuple(sender_address)
         self.sender_name = sender_name
-        self.token = str(token) if token else None
+        self.token = str(token) if token is not None else None
 
 
 class ConnectionAcceptedResponse(Message):

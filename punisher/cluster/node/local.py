@@ -24,7 +24,7 @@ class LocalNode(BaseNode):
 
         # storage
         self.store = store
-        self.token = self.token or self.store.get_random_token()
+        self.token = self.token if self.token is not None else self.store.get_random_token()
 
     def ping(self):
         self.last_ping = datetime.utcnow()
