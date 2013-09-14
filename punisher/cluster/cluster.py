@@ -260,15 +260,14 @@ class Cluster(object):
         return self.store.get_token_range(start_token, max_token, size)
 
     def get_token_range(self):
-        """
-        find the range of tokens that this cluster's node owns or replicates
-        """
+        """ find the range of tokens that this cluster's node owns or replicates """
         idx = [n.node_id for n in self.token_ring].index(self.node_id)
         if len(self.token_ring) <= self.replication_factor:
             return 0, self.partitioner.max_token
 
-        tokens = [self.token_ring[(idx + i) % len(self.token_ring)].token for i in range(self.replication_factor + 1)]
-        return tokens[0], tokens[-1]
+        max_token = self.token_ring[(idx + 1) % len(self.token_ring)].token - 1
+        min_token = self.token_ring[(idx - (self.replication_factor - 1)) % len(self.token_ring)].token
+        return min_token, max_token
 
     def _initialize_data(self):
         """ handles populating this node with data when it joins an existing cluster """
