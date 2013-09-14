@@ -17,10 +17,11 @@ class Punisher(object):
                  name=None,
                  node_id=None,
                  replication_factor=3,
-                 cluster_status=Cluster.Status.INITIALIZING):
+                 cluster_status=Cluster.Status.INITIALIZING,
+                 partitioner=None):
         super(Punisher, self).__init__()
 
-        self.partitioner = MD5Partitioner
+        self.partitioner = partitioner or MD5Partitioner()
         self.store = RedisStore(MD5Partitioner)
 
         self.client_address = client_address
