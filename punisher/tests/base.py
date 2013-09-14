@@ -1,6 +1,8 @@
 import time
 from unittest import TestCase
 
+import gevent
+
 from punisher.cluster.cluster import Cluster
 from punisher.partitioner.base import BasePartitioner
 from punisher.partitioner.md5 import MD5Partitioner
@@ -66,6 +68,18 @@ class BaseNodeTestCase(TestCase):
                                  token=tokens[i],
                                  partitioner=partitioner)
                 for i in range(num_nodes)]
+
+    def start_cluster(self):
+        for node in self.nodes:
+            node.start()
+        gevent.sleep(0)
+
+        # check that all the nodes are aware of each other
+        for node in self.nodes:
+            for peer in self.nodes:
+                self.assertIn(peer.node_id, node.cluster.nodes)
+
+
 
 
 class LiteralPartitioner(BasePartitioner):

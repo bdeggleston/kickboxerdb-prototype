@@ -38,3 +38,42 @@ class KeyRoutingTest(BaseNodeTestCase):
                 self.assertEqual(len(nodes), len(fixture['expected']))
                 self.assertEqual([n.node_id for n in nodes], [n.node_id for n in fixture['expected']])
 
+    def test_clustered_key_distribution(self):
+        """ Tests that keys are properly routed to their owners and replicas in a cluster """
+        num_nodes = 10
+        tokens = [1000 * i for i in range(num_nodes)]
+        self.create_nodes(num_nodes, tokens=tokens, partitioner=LiteralPartitioner())
+        self.start_cluster()
+
+        # add a bunch of data
+        total_data = {}
+        for i in range(500):
+            node = self.nodes[i % len(self.nodes)]
+            key = str(i * 20)
+            val = str(i)
+            node.cluster.execute_mutation_instruction('set', key, [val], synchronous=True)
+            total_data[key] = val
+        gevent.sleep(0)
+
+        # sanity check data distribution
+        # assuming a replication factor of 3, each node should
+        # replicate the data from it's two predecessor nodes
+        for i in range(len(self.nodes)):
+            node = self.nodes[i]
+            self.assertEqual(len(node.cluster.store._data), 50 * 3)
+            max_token = node.token + 1000 - 20
+            min_token = self.nodes[(i - (node.cluster.replication_factor - 1)) % len(self.nodes)].token
+            keys = {int(k) for k in node.cluster.store._data.keys()}
+            if min_token < max_token:
+                print i
+                self.assertEqual(min(keys), min_token)
+                self.assertEqual(max(keys), max_token)
+            else:
+                self.assertEqual(min(keys), 0)
+                self.assertIn(min_token, keys)
+                self.assertNotIn(min_token - 20, keys)
+
+                self.assertEqual(max(keys), (10000 - 20))
+                self.assertIn(max_token, keys)
+                self.assertNotIn((max_token + 20), keys)
+
