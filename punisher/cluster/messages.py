@@ -372,6 +372,7 @@ class LeaveClusterRequest(Message):
 class LeaveClusterResponse(Message):
     __message_type__ = 11
 
+
 # ----------- error responses -----------
 
 class ErrorResponse(Message):
