@@ -1,19 +1,6 @@
 import gevent
 
-from punisher.partitioner.base import BasePartitioner
-from punisher.tests.base import BaseNodeTestCase
-
-
-class LiteralPartitioner(BasePartitioner):
-    """
-    returns the number passed into the key,
-    keys can only be stringified ints
-    """
-    max_token = 10000
-
-    @classmethod
-    def get_key_token(cls, key):
-        return int(key)
+from punisher.tests.base import BaseNodeTestCase, LiteralPartitioner
 
 
 class KeyRoutingTest(BaseNodeTestCase):

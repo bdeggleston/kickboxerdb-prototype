@@ -2,6 +2,7 @@ import time
 from unittest import TestCase
 
 from punisher.cluster.cluster import Cluster
+from punisher.partitioner.base import BasePartitioner
 from punisher.partitioner.md5 import MD5Partitioner
 from punisher.server import Punisher
 
@@ -66,3 +67,14 @@ class BaseNodeTestCase(TestCase):
                                  partitioner=partitioner)
                 for i in range(num_nodes)]
 
+
+class LiteralPartitioner(BasePartitioner):
+    """
+    returns the number passed into the key,
+    keys can only be stringified ints
+    """
+    max_token = 10000
+
+    @classmethod
+    def get_key_token(cls, key):
+        return int(key)
