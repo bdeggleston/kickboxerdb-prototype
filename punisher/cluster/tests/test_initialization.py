@@ -52,6 +52,56 @@ class InitializationIntegrationTests(BaseNodeTestCase):
             actual = store_data[key]
             self.assertEqual(expected, actual.data)
 
+    def test_remote_key_retiring(self):
+        """ tests that the proper remote keys are removed after node initialization """
+        num_nodes = 10
+        tokens = [1000 * i for i in range(num_nodes)]
+        self.create_nodes(num_nodes, tokens=tokens, partitioner=LiteralPartitioner())
+        self.start_cluster()
+
+        # add a bunch of data
+        total_data = {}
+        for i in range(500):
+            node = self.nodes[i % len(self.nodes)]
+            key = str(i * 20)
+            val = str(i)
+            node.cluster.execute_mutation_instruction('set', key, [val], synchronous=True)
+            total_data[key] = val
+
+        # saturate tokens in the range to be retired
+        for i in range(700):
+            node = self.nodes[i % len(self.nodes)]
+            key = str(5400 + i)
+            val = str(i)
+            node.cluster.execute_mutation_instruction('set', key, [val], synchronous=True)
+        gevent.sleep(0)
+
+        new_node = self.create_node(
+            cluster_status=Cluster.Status.INITIALIZING,
+            token=5500,
+            partitioner=LiteralPartitioner()
+        )
+        new_node.start()
+        new_node.cluster._initializer.join()
+
+        # new node is responsible for 5500 - 5999
+        # and replicates 4000 - 5499
+        # 5500 - 5999 should be retired on node[5]
+        # 5000 - 5499 should be retired on node[7]
+
+        # test previous owner
+        node = self.nodes[5]
+        self.assertEqual(node.token, 5000)
+        max_token = max([int(k) for k in node.cluster.store._data.keys()])
+        self.assertLess(max_token, 5500)
+
+        # test previous replica
+        node = self.nodes[7]
+        self.assertEqual(node.token, 7000)
+        min_token = min([int(k) for k in node.cluster.store._data.keys()])
+        self.assertGreaterEqual(min_token, 5500)
+
+
     def test_data_is_properly_transferred_on_initialization(self):
         """
         Tests that a node joining an existing cluster properly

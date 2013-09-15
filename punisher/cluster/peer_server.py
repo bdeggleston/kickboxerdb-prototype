@@ -127,6 +127,10 @@ class PeerServer(StreamServer):
                 )
             )
 
+        elif isinstance(request, messages.RetireKeyRangeRequest):
+            self.cluster.retire_token_range(request.start_token_long, request.stop_token_long)
+            return messages.RetireKeyRangeResponse(self.node_id)
+
         else:
             return messages.ErrorResponse(self.node_id, 'unexpected message: {}'.format(request))
 

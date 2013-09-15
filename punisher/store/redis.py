@@ -121,6 +121,23 @@ class RedisStore(object):
                 rdata.append((key, self._data.get(key)))
         return rdata
 
+    def remove_token_range(self, start_token, stop_token):
+        """
+        removes all keys in the store with tokens between the
+        given start and stop token, inclusively
+        :param start_token:
+        :param stop_token:
+        :return:
+        """
+        token_map = self.token_map
+        key_view = token_map.viewkeys()
+        start_idx = key_view.bisect_left(start_token)
+        for token in key_view[start_idx:]:
+            if token > stop_token:
+                break
+            for key in token_map[token]:
+                self._data.pop(key, None)
+
     def set_and_reconcile_raw_value(self, key, value):
         self._data[key] = value
 

@@ -259,6 +259,30 @@ class Cluster(object):
     def get_migration_data(self, start_token, max_token, size):
         return self.store.get_token_range(start_token, max_token, size)
 
+    def retire_token_range(self, start_token, stop_token):
+        """ removes any tokens from the store that are no longer owned or replicated by this node """
+        # check that there's an intersection
+        min_token, max_token = self.get_token_range()
+        def get_intersection(mn, mx):
+            if mn > stop_token or mx < start_token:
+                return None, None
+            else:
+                return max(start_token, mn), min(stop_token, mx)
+        if min_token < max_token:
+            mn, mx = get_intersection(min_token, max_token)
+            if mn is None or mx is None: return
+            self.store.remove_token_range(mn, mx)
+            return
+        else:
+            mn, mx = get_intersection(min_token, self.partitioner.max_token)
+            if mn is not None and mx is not None:
+                self.store.remove_token_range(mn, mx)
+                return
+            mn, mx = get_intersection(0, max_token)
+            if mn is not None and mx is not None:
+                self.store.remove_token_range(mn, mx)
+                return
+
     def get_token_range(self):
         """ find the range of tokens that this cluster's node owns or replicates """
         idx = [n.node_id for n in self.token_ring].index(self.node_id)
@@ -278,6 +302,10 @@ class Cluster(object):
         start_token = (min_token - 1) % self.partitioner.max_token
 
         def migrate_data(start, stop):
+            """
+            start and stop should be a contiguous range of keys (start should always be less than stop)
+
+            """
             for node in self._initializer_ring:
                 local_min = start
                 while True:
@@ -295,14 +323,22 @@ class Cluster(object):
                         break
 
                     # otherwise, throw it into the store
+                    tokens = set()
                     for key, val in data:
                         local_min = max(local_min, self.partitioner.get_key_token(key))
                         self.store.set_and_reconcile_raw_value(key, val)
-                        # if self.node_id in [n.node_id for n in self.get_nodes_for_key(key)]:
-                        #     self.store.set_and_reconcile_raw_value(key, val)
+                        tokens.add(self.partitioner.get_key_token(key))
 
                     local_min += 1
                     # TODO: retire old data on the node
+
+                    # retire old data on the remote node
+                    response = node.send_message(messages.RetireKeyRangeRequest(
+                        self.node_id,
+                        min(tokens),
+                        max(tokens),
+                    ))
+                    assert isinstance(response, messages.RetireKeyRangeResponse)
 
 
         if min_token < max_token:
