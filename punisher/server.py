@@ -22,7 +22,7 @@ class Punisher(object):
         super(Punisher, self).__init__()
 
         self.partitioner = partitioner or MD5Partitioner()
-        self.store = RedisStore(MD5Partitioner)
+        self.store = RedisStore(self.partitioner)
 
         self.client_address = client_address
         self.peer_address = peer_address
