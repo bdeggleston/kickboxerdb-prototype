@@ -101,7 +101,6 @@ class InitializationIntegrationTests(BaseNodeTestCase):
         min_token = min([int(k) for k in node.cluster.store._data.keys()])
         self.assertGreaterEqual(min_token, 5500)
 
-
     def test_data_is_properly_transferred_on_initialization(self):
         """
         Tests that a node joining an existing cluster properly

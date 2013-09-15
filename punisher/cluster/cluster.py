@@ -262,26 +262,20 @@ class Cluster(object):
     def retire_token_range(self, start_token, stop_token):
         """ removes any tokens from the store that are no longer owned or replicated by this node """
         # check that there's an intersection
+        # TODO: reverse the intersection check, it should only be retiring tokens
+        # that don't fall in the current token range
         min_token, max_token = self.get_token_range()
-        def get_intersection(mn, mx):
-            if mn > stop_token or mx < start_token:
-                return None, None
-            else:
-                return max(start_token, mn), min(stop_token, mx)
+        def retire_range(mn, mx):
+            if start_token < mn:
+                self.store.remove_token_range(start_token, min(stop_token, mn - 1))
+            if stop_token > mx:
+                self.store.remove_token_range(max(start_token, mx + 1), stop_token)
+
         if min_token < max_token:
-            mn, mx = get_intersection(min_token, max_token)
-            if mn is None or mx is None: return
-            self.store.remove_token_range(mn, mx)
-            return
+            retire_range(min_token, max_token)
         else:
-            mn, mx = get_intersection(min_token, self.partitioner.max_token)
-            if mn is not None and mx is not None:
-                self.store.remove_token_range(mn, mx)
-                return
-            mn, mx = get_intersection(0, max_token)
-            if mn is not None and mx is not None:
-                self.store.remove_token_range(mn, mx)
-                return
+            retire_range(0, max_token)
+            retire_range(min_token, self.partitioner.max_token)
 
     def get_token_range(self):
         """ find the range of tokens that this cluster's node owns or replicates """
