@@ -81,7 +81,7 @@ class Cluster(object):
         # by token, so this can be used to quickly determine
         # whether this node has a given key, or where to restart
         # initialization from, if there was an interruption
-        self._initialized_to = None
+        self._initialization_history = {}
 
         # the greenlet running the initialization
         self._initializer = None
@@ -289,11 +289,10 @@ class Cluster(object):
 
     def _initialize_data(self):
         """ handles populating this node with data when it joins an existing cluster """
-        self._initialized_to = self._initialized_to or (self.token - 1) % self.partitioner.max_token
+        self._initialization_history = self._initialization_history or {}
 
         # get the min and max tokens
         min_token, max_token = self.get_token_range()
-        start_token = (min_token - 1) % self.partitioner.max_token
 
         def migrate_data(start, stop):
             """
@@ -323,6 +322,7 @@ class Cluster(object):
                         self.store.set_and_reconcile_raw_value(key, val)
                         tokens.add(self.partitioner.get_key_token(key))
 
+                    self._initialization_history[node.node_id] = local_min
                     local_min += 1
                     # TODO: retire old data on the node
 
@@ -333,7 +333,6 @@ class Cluster(object):
                         max(tokens),
                     ))
                     assert isinstance(response, messages.RetireKeyRangeResponse)
-
 
         if min_token < max_token:
             migrate_data(min_token, max_token)
