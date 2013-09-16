@@ -140,3 +140,7 @@ class InitializationIntegrationTests(BaseNodeTestCase):
 
     def test_data_is_retired_after_initialization(self):
         """ tests that data taken by a new node is removed if a node no longer uses it """
+
+
+class InitializationNodeQueryTest(BaseNodeTestCase):
+    pass
