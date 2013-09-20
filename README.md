@@ -60,6 +60,12 @@ nodes, in this case n3 & n4, assuming a replication factor of 3.
 nZ will determine it's total token range (owned and replicated), and begin querying
 each node for token ranges (start token, max token and size) the max token
 
+## Token change
+
+stream in the deltas between ranges
+
+## Node Removal
+
 # nanny process
 each cluster (node) should have a background process that picks up after the node.
 It is responsible for:
