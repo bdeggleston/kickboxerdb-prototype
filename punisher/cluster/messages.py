@@ -344,6 +344,28 @@ class RequestTokenResponse(Message):
         super(RequestTokenResponse, self).__init__(sender_id, message_id)
         self.token = token
 
+
+class ChangedTokenRequest(Message):
+    __message_type__ = 805
+
+    def __init__(self, sender_id, node_id, new_token, message_id=None):
+        super(ChangedTokenRequest, self).__init__(sender_id, message_id)
+        self.node_id = self._uuid_bytes(node_id)
+        self.new_token = str(new_token)
+
+    @property
+    def node_uuid(self):
+        return uuid.UUID(bytes=self.node_id)
+
+    @property
+    def new_token_long(self):
+        return long(self.new_token)
+
+
+class ChangedTokenResponse(Message):
+    __message_type__ = 806
+
+
 # ----------- cluster admin (deprecated?) -----------
 
 class JoinClusterRequest(Message):

@@ -1,3 +1,4 @@
+from collections import namedtuple
 from datetime import datetime
 from hashlib import md5
 import pickle
@@ -32,6 +33,8 @@ class Cluster(object):
         INITIALIZING    = 0
         STREAMING       = 1
         NORMAL          = 2
+
+    TokenRange = namedtuple('TokenRange', ['min_token', 'max_token'])
 
     class ConsistencyLevel(object):
         ONE     = 1
@@ -117,6 +120,10 @@ class Cluster(object):
     @property
     def is_initializing(self):
         return self.status == Cluster.Status.INITIALIZING
+
+    @property
+    def is_streaming(self):
+        return self.status == Cluster.Status.STREAMING
 
     @property
     def is_normal(self):
@@ -287,6 +294,56 @@ class Cluster(object):
         min_token = self.token_ring[(idx - (self.replication_factor - 1)) % len(self.token_ring)].token
         return min_token, max_token
 
+    def _migrate_data(self, node, min_token, max_token, retire_data=False):
+        """
+        migrates data from the given external node onto this node
+
+        :param node:
+        :param min_token:
+        :param max_token:
+        :param retire_data:
+        :return:
+        """
+        # handle a token range that wraps around 0
+        if min_token > max_token:
+            self._migrate_data(node, 0, min_token, retire_data=retire_data)
+            self._migrate_data(node, max_token, self.partitioner.max_token, retire_data=retire_data)
+            return
+
+        local_min = min_token
+        while True:
+            response = node.send_message(messages.DataMigrateRequest(
+                self.node_id,
+                local_min,
+                max_token
+            ))
+            assert isinstance(response, messages.DataMigrationResponse)
+
+            data = pickle.loads(response.data)
+            # return if we've gotten everything we
+            # need from this node
+            if len(data) == 0:
+                break
+
+            # otherwise, throw it into the store
+            tokens = set()
+            for key, val in data:
+                local_min = max(local_min, self.partitioner.get_key_token(key))
+                self.store.set_and_reconcile_raw_value(key, val)
+                tokens.add(self.partitioner.get_key_token(key))
+
+            self._initialization_history[node.node_id] = local_min
+            local_min += 1
+
+            if retire_data:
+                # retire old data on the remote node
+                response = node.send_message(messages.RetireKeyRangeRequest(
+                    self.node_id,
+                    min(tokens),
+                    max(tokens),
+                    ))
+                assert isinstance(response, messages.RetireKeyRangeResponse)
+
     def _initialize_data(self):
         """ handles populating this node with data when it joins an existing cluster """
         self._initialization_history = self._initialization_history or {}
@@ -294,53 +351,41 @@ class Cluster(object):
         # get the min and max tokens
         min_token, max_token = self.get_token_range()
 
-        def migrate_data(start, stop):
-            """
-            start and stop should be a contiguous range of keys (start should always be less than stop)
-
-            """
-            for node in self._initializer_ring:
-                local_min = start
-                while True:
-                    response = node.send_message(messages.DataMigrateRequest(
-                        self.node_id,
-                        local_min,
-                        stop
-                    ))
-                    assert isinstance(response, messages.DataMigrationResponse)
-
-                    data = pickle.loads(response.data)
-                    # return if we've gotten everything we
-                    # need from this node
-                    if len(data) == 0:
-                        break
-
-                    # otherwise, throw it into the store
-                    tokens = set()
-                    for key, val in data:
-                        local_min = max(local_min, self.partitioner.get_key_token(key))
-                        self.store.set_and_reconcile_raw_value(key, val)
-                        tokens.add(self.partitioner.get_key_token(key))
-
-                    self._initialization_history[node.node_id] = local_min
-                    local_min += 1
-                    # TODO: retire old data on the node
-
-                    # retire old data on the remote node
-                    response = node.send_message(messages.RetireKeyRangeRequest(
-                        self.node_id,
-                        min(tokens),
-                        max(tokens),
-                    ))
-                    assert isinstance(response, messages.RetireKeyRangeResponse)
-
-        if min_token < max_token:
-            migrate_data(min_token, max_token)
-        else:
-            migrate_data(max_token, self.partitioner.max_token)
-            migrate_data(0, min_token)
+        for node in self._initializer_ring:
+            self._migrate_data(node, min_token, max_token, retire_data=True)
 
         self.status = Cluster.Status.NORMAL
+
+    def change_token(self, node_id, token, alert_cluster=True):
+        """
+        Changes this node's token and starts the pulls in the new key ranges
+        :param node_id:
+        :param token:
+        :param alert_cluster: indicates that the other nodes in the cluster
+            should be notified of the change
+        """
+        node_id = node_id or self.node_id
+        node = self.nodes[node_id]
+
+        if token == node.token:
+            return
+
+        old_min, old_max = self.get_token_range()
+        old_ring = self.token_ring
+        node.token = token
+        self._refresh_ring()
+        new_min, new_max = self.get_token_range()
+
+        if old_min == new_min and old_max == new_max:
+            return
+
+        # alert other nodes of the change
+        if alert_cluster:
+            for node in self.nodes:
+                if node.node_id == self.node_id: continue
+                node.send_message(messages.ChangedTokenRequest(self.node_id, node.node_id, token))
+
+
 
     # ------------- request handling -------------
 
@@ -371,7 +416,6 @@ class Cluster(object):
 
         token = self.partitioner.get_key_token(key)
         return self.get_nodes_for_token(token)
-
 
     def _finalize_retrieval(self, instruction, key, args, gpool, greenlets):
         """
