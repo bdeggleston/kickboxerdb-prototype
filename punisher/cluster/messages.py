@@ -316,6 +316,36 @@ class RetireKeyRangeResponse(Message):
     __message_type__ = 704
 
 
+class StreamRequest(Message):
+    """
+    requests the destination node to stream keys replicated
+    by the sending node to the sending node
+    """
+    __message_type__ = 705
+
+
+class StreamResponse(Message):
+    __message_type__ = 706
+
+
+class StreamDataRequest(Message):
+    """ sends 1 or more key/value pairs """
+    __message_type__ = 707
+
+
+class StreamDataResponse(Message):
+    __message_type__ = 708
+
+
+class StreamCompleteRequest(Message):
+    """ sent when a node has finished streaming data to another node """
+    __message_type__ = 709
+
+
+class StreamCompleteResponse(Message):
+    __message_type__ = 710
+
+
 # ----------- token discovery / communication -----------
 
 class AnnounceTokenRequest(Message):
