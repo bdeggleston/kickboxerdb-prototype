@@ -2,6 +2,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from blist import sorteddict
+from punisher.store.base import BaseStore
 
 from punisher.utils import serialize_timestamp, deserialize_timestamp
 
@@ -61,7 +62,7 @@ class Instruction(object):
         self.timestamp = timestamp
 
 
-class RedisStore(object):
+class RedisStore(BaseStore):
     """
     Basic key/value store, values are stored as Value instance,
     which include the value data, and a timestamp of when it was
@@ -137,6 +138,9 @@ class RedisStore(object):
                 break
             for key in token_map[token]:
                 self._data.pop(key, None)
+
+    def all_keys(self):
+        self._data.keys()
 
     def set_and_reconcile_raw_value(self, key, value):
         self._data[key] = value

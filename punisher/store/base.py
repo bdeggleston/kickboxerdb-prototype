@@ -19,3 +19,8 @@ class BaseStore(object):
 
     def set_and_reconcile_raw_value(self, key, value):
         raise NotImplementedError
+
+    def all_keys(self):
+        """ returns an iterator that iterates over all keys in the store """
+        raise NotImplementedError
+
