@@ -1,6 +1,7 @@
 from collections import namedtuple
 from datetime import datetime
 import inspect
+import pickle
 import struct
 import uuid
 
@@ -335,6 +336,15 @@ class StreamDataRequest(Message):
 
 class StreamDataResponse(Message):
     __message_type__ = 708
+
+    def __init__(self, sender_id, data, message_id=None):
+        super(StreamDataResponse, self).__init__(sender_id, message_id)
+        if not isinstance(data, (list, tuple)):
+            data = [data]
+        self.data = [pickle.dumps(d, protocol=pickle.HIGHEST_PROTOCOL) for d in data]
+
+    def get_data(self):
+        return [pickle.loads(d) for d in self.data]
 
 
 class StreamCompleteRequest(Message):

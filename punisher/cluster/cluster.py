@@ -34,8 +34,6 @@ class Cluster(object):
         STREAMING       = 1
         NORMAL          = 2
 
-    TokenRange = namedtuple('TokenRange', ['min_token', 'max_token'])
-
     class ConsistencyLevel(object):
         ONE     = 1
         QUORUM  = 2
@@ -85,6 +83,11 @@ class Cluster(object):
         # whether this node has a given key, or where to restart
         # initialization from, if there was an interruption
         self._initialization_history = {}
+
+        # keeps info about nodes that are currently streaming data
+        # to this node
+        self._streaming_info = {}
+        self._streaming_nodes = set()
 
         # the greenlet running the initialization
         self._initializer = None
@@ -354,7 +357,15 @@ class Cluster(object):
         for node in self._initializer_ring:
             self._migrate_data(node, min_token, max_token, retire_data=True)
 
-        self.status = Cluster.Status.NORMAL
+        idx = self.token_ring.index(self)
+        stream_from = self.token_ring[(idx - 1 - self.replication_factor): (idx - 1)]
+        stream_from += self.token_ring[idx + 1: idx + self.replication_factor]
+
+        self.status = Cluster.Status.STREAMING
+        for node in stream_from:
+            node.send_message(messages.StreamRequest(self.node_id))
+
+        # self.status = Cluster.Status.NORMAL
 
     def change_token(self, node_id, token, alert_cluster=True):
         """
@@ -385,7 +396,45 @@ class Cluster(object):
                 if node.node_id == self.node_id: continue
                 node.send_message(messages.ChangedTokenRequest(self.node_id, node.node_id, token))
 
+    def stream_to_node(self, node):
+        """
+        streams data contained on the local node to the given remote
+        node
 
+        :param node: the remote node to stream data to
+        :type node: RemoteNode
+        """
+        for key in self.store.all_keys():
+            if node in self.get_nodes_for_key(key):
+                response = node.send_message(messages.StreamDataRequest(
+                    self.node_id,
+                    self.store.get_raw_value(key)
+                ))
+                assert isinstance(response, messages.StreamDataResponse)
+
+        response = node.send_message(messages.StreamCompleteRequest(
+            self.node_id,
+        ))
+        assert isinstance(response, messages.StreamCompleteResponse)
+
+    def _request_streamed_data(self, node):
+        """
+        requests a node to stream data to the requesting node
+        :param node:
+        """
+        self.status = Cluster.Status.STREAMING
+        response = node.send_message(messages.StreamRequest(self.node_id))
+        assert isinstance(response, messages.StreamResponse)
+        self._streaming_nodes.add(node.node_id)
+
+    def _end_streaming(self, node):
+        """
+        handles a notification that a node is finished streaming data to this node
+        :param node:
+        """
+        self._streaming_nodes.remove(node.node_id)
+        if len(self._streaming_nodes) == 0:
+            self.status = Cluster.Status.NORMAL
 
     # ------------- request handling -------------
 

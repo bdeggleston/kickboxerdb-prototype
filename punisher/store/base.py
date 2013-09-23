@@ -24,3 +24,6 @@ class BaseStore(object):
         """ returns an iterator that iterates over all keys in the store """
         raise NotImplementedError
 
+    def get_raw_value(self, key):
+        raise NotImplementedError
+

@@ -142,6 +142,9 @@ class RedisStore(BaseStore):
     def all_keys(self):
         self._data.keys()
 
+    def get_raw_value(self, key):
+        return self._data.get(key)
+
     def set_and_reconcile_raw_value(self, key, value):
         self._data[key] = value
 
