@@ -140,7 +140,7 @@ class RedisStore(BaseStore):
                 self._data.pop(key, None)
 
     def all_keys(self):
-        self._data.keys()
+        return self._data.keys()
 
     def get_raw_value(self, key):
         return self._data.get(key)
