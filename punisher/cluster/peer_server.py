@@ -115,6 +115,7 @@ class PeerServer(StreamServer):
                 )
 
         elif isinstance(request, messages.DataMigrateRequest):
+            #DEPRECATED
             return messages.DataMigrationResponse(
                 self.node_id,
                 pickle.dumps(
@@ -128,8 +129,21 @@ class PeerServer(StreamServer):
             )
 
         elif isinstance(request, messages.RetireKeyRangeRequest):
+            #DEPRECATED
             self.cluster.retire_token_range(request.start_token_long, request.stop_token_long)
             return messages.RetireKeyRangeResponse(self.node_id)
+
+        elif isinstance(request, messages.StreamRequest):
+            self.cluster.stream_to_node(request.sender)
+            return messages.StreamResponse(self.node_id)
+
+        elif isinstance(request, messages.StreamDataRequest):
+            self.cluster._receive_streamed_values(request.data)
+            return messages.StreamDataResponse(self.node_id)
+
+        elif isinstance(request, messages.StreamCompleteRequest):
+            self.cluster._end_streaming(request.sender)
+            return messages.StreamCompleteResponse(self.node_id)
 
         else:
             return messages.ErrorResponse(self.node_id, 'unexpected message: {}'.format(request))

@@ -349,23 +349,20 @@ class Cluster(object):
 
     def _initialize_data(self):
         """ handles populating this node with data when it joins an existing cluster """
-        self._initialization_history = self._initialization_history or {}
+        # self._initialization_history = self._initialization_history or {}
+        #
+        # # get the min and max tokens
+        # min_token, max_token = self.get_token_range()
+        #
+        # for node in self._initializer_ring:
+        #     self._migrate_data(node, min_token, max_token, retire_data=True)
 
-        # get the min and max tokens
-        min_token, max_token = self.get_token_range()
+        idx = self.token_ring.index(self.local_node)
+        stream_from = list(self.token_ring[(idx - 1 - self.replication_factor): (idx - 1)])
+        stream_from += list(self.token_ring[idx + 1: idx + self.replication_factor])
 
-        for node in self._initializer_ring:
-            self._migrate_data(node, min_token, max_token, retire_data=True)
-
-        idx = self.token_ring.index(self)
-        stream_from = self.token_ring[(idx - 1 - self.replication_factor): (idx - 1)]
-        stream_from += self.token_ring[idx + 1: idx + self.replication_factor]
-
-        self.status = Cluster.Status.STREAMING
         for node in stream_from:
-            node.send_message(messages.StreamRequest(self.node_id))
-
-        # self.status = Cluster.Status.NORMAL
+            self._request_streamed_data(node)
 
     def change_token(self, node_id, token, alert_cluster=True):
         """
@@ -396,19 +393,20 @@ class Cluster(object):
                 if node.node_id == self.node_id: continue
                 node.send_message(messages.ChangedTokenRequest(self.node_id, node.node_id, token))
 
-    def stream_to_node(self, node):
+    def stream_to_node(self, node_id):
         """
         streams data contained on the local node to the given remote
         node
 
-        :param node: the remote node to stream data to
-        :type node: RemoteNode
+        :param node_id: the id of the remote node to stream data to
+        :type node_id: UUID
         """
+        node = self.nodes[node_id]
         for key in self.store.all_keys():
             if node in self.get_nodes_for_key(key):
                 response = node.send_message(messages.StreamDataRequest(
                     self.node_id,
-                    self.store.get_raw_value(key)
+                    [pickle.dumps((key, self.store.get_raw_value(key)))]
                 ))
                 assert isinstance(response, messages.StreamDataResponse)
 
@@ -422,19 +420,25 @@ class Cluster(object):
         requests a node to stream data to the requesting node
         :param node:
         """
+        if node.node_id == self.node_id: return
+        self._streaming_nodes.add(node.node_id)
         self.status = Cluster.Status.STREAMING
         response = node.send_message(messages.StreamRequest(self.node_id))
         assert isinstance(response, messages.StreamResponse)
-        self._streaming_nodes.add(node.node_id)
 
-    def _end_streaming(self, node):
+    def _end_streaming(self, node_id):
         """
         handles a notification that a node is finished streaming data to this node
-        :param node:
+        :param node_id:
         """
-        self._streaming_nodes.remove(node.node_id)
+        self._streaming_nodes.remove(node_id)
         if len(self._streaming_nodes) == 0:
             self.status = Cluster.Status.NORMAL
+
+    def _receive_streamed_values(self, data):
+        for d in data:
+            key, val = pickle.loads(d)
+            self.store.set_and_reconcile_raw_value(key, val)
 
     # ------------- request handling -------------
 

@@ -1,5 +1,6 @@
 import random
 import string
+from unittest import skip
 
 import gevent
 
@@ -52,6 +53,7 @@ class InitializationIntegrationTests(BaseNodeTestCase):
             actual = store_data[key]
             self.assertEqual(expected, actual.data)
 
+    @skip('deprecated')
     def test_remote_key_retiring(self):
         """ tests that the proper remote keys are removed after node initialization """
         num_nodes = 10

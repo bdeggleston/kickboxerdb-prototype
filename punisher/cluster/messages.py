@@ -333,19 +333,19 @@ class StreamDataRequest(Message):
     """ sends 1 or more key/value pairs """
     __message_type__ = 707
 
+    def __init__(self, sender_id, data, message_id=None):
+        super(StreamDataRequest, self).__init__(sender_id, message_id)
+        self.data = data
+    #     if not isinstance(data, (list, tuple)):
+    #         data = [data]
+    #     self.data = [pickle.dumps(d) for d in data]
+    #
+    # def get_data(self):
+    #     return [pickle.loads(d) for d in self.data]
+
 
 class StreamDataResponse(Message):
     __message_type__ = 708
-
-    def __init__(self, sender_id, data, message_id=None):
-        super(StreamDataResponse, self).__init__(sender_id, message_id)
-        if not isinstance(data, (list, tuple)):
-            data = [data]
-        self.data = [pickle.dumps(d, protocol=pickle.HIGHEST_PROTOCOL) for d in data]
-
-    def get_data(self):
-        return [pickle.loads(d) for d in self.data]
-
 
 class StreamCompleteRequest(Message):
     """ sent when a node has finished streaming data to another node """
