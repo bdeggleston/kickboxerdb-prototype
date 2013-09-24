@@ -268,7 +268,8 @@ class Cluster(object):
 
     def change_token(self, node_id, token, alert_cluster=True):
         """
-        Changes this node's token and starts the pulls in the new key ranges
+        Changes the given node's token and initiates streaming from new replica nodes
+
         :param node_id:
         :param token:
         :param alert_cluster: indicates that the other nodes in the cluster
@@ -281,14 +282,13 @@ class Cluster(object):
             return
 
         old_min, old_max = self.get_token_range()
-        old_ring = self.token_ring
         node.token = token
         self._refresh_ring()
         new_min, new_max = self.get_token_range()
 
         # alert other nodes of the change
         if alert_cluster:
-            for node in self.nodes:
+            for node in self.nodes.values():
                 if node.node_id == self.node_id: continue
                 node.send_message(messages.ChangedTokenRequest(self.node_id, node.node_id, token))
 
@@ -297,6 +297,43 @@ class Cluster(object):
             return
 
         # otherwise, stream data in from surrounding nodes
+        self.stream_from_replicas()
+
+    def remove_node(self, node_id, alert_cluster=True):
+        """
+        removes the given node from the token ring, when manually
+        retiring node, the node should be left up until all other
+        nodes are finished streaming data from the node
+
+        :param node_id:
+        :param alert_cluster: indicates that the other nodes in the cluster
+            should be notified of the change
+        """
+        node = self.nodes[node_id]
+        def _alert_cluster():
+            if alert_cluster:
+                for dst_node in self.nodes.values():
+                    if dst_node.node_id == self.node_id: continue
+                    dst_node.send_message(messages.RemoveNodeRequest(self.node_id, node.node_id))
+
+        if node_id == self.node_id:
+            _alert_cluster()
+            return
+
+        old_min, old_max = self.get_token_range()
+        self.nodes.pop(node.node_id)
+        self._refresh_ring()
+        new_min, new_max = self.get_token_range()
+
+        _alert_cluster()
+
+        # bail out if we don't need to do anything
+        if old_min == new_min and old_max == new_max:
+            return
+
+        # otherwise, stream data in from surrounding nodes
+        self.stream_from_replicas()
+
 
     def stream_to_node(self, node_id):
         """

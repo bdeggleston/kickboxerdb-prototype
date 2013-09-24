@@ -257,7 +257,7 @@ class MutationOperationResponse(Message):
         self.result = result
 
 
-# ----------- node initialization / data migration -----------
+# ----------- data streaming -----------
 
 class StreamRequest(Message):
     """
@@ -278,12 +278,6 @@ class StreamDataRequest(Message):
     def __init__(self, sender_id, data, message_id=None):
         super(StreamDataRequest, self).__init__(sender_id, message_id)
         self.data = data
-    #     if not isinstance(data, (list, tuple)):
-    #         data = [data]
-    #     self.data = [pickle.dumps(d) for d in data]
-    #
-    # def get_data(self):
-    #     return [pickle.loads(d) for d in self.data]
 
 
 class StreamDataResponse(Message):
@@ -346,6 +340,22 @@ class ChangedTokenRequest(Message):
 
 class ChangedTokenResponse(Message):
     __message_type__ = 806
+
+
+class RemoveNodeRequest(Message):
+    __message_type__ = 807
+
+    def __init__(self, sender_id, node_id, message_id=None):
+        super(RemoveNodeRequest, self).__init__(sender_id, message_id)
+        self.node_id = self._uuid_bytes()
+
+    @property
+    def node_uuid(self):
+        return uuid.UUID(bytes=self.node_id)
+
+
+class RemoveNodeResponse(Message):
+    __message_type__ = 808
 
 
 # ----------- cluster admin (deprecated?) -----------
