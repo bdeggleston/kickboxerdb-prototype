@@ -12,17 +12,6 @@ class GetTest(BaseClusteredStorageTest):
 
     def test_get_agreed_upon_value(self):
         """ Tests getting a value when all nodes agree on the value """
-        """
-        Traceback (most recent call last):
-          File "/Users/bdeggleston/.workon/punisher1/lib/python2.7/site-packages/gevent/greenlet.py", line 390, in run
-            result = self._run(*self.args, **self.kwargs)
-          File "/Users/bdeggleston/code/punisher1/punisher/cluster/cluster.py", line 318, in _execute
-            result = node.execute_retrieval_instruction(instruction, key, args)
-          File "/Users/bdeggleston/code/punisher1/punisher/cluster/node/remote.py", line 159, in execute_retrieval_instruction
-            assert isinstance(response, messages.RetrievalValueResponse)
-        AssertionError
-        <Greenlet at 0x10c6c1050: _execute(<punisher.cluster.node.remote.RemoteNode object at)> failed with AssertionError
-        """
         num_nodes = 10
         key = 'a'
         self.create_nodes(num_nodes)
@@ -55,17 +44,6 @@ class GetTest(BaseClusteredStorageTest):
         returned value should be a result of reconciling the different
         values across the cluster, and the nodes with out of date data
         should be updated
-        """
-        """
-        Traceback (most recent call last):
-          File "/Users/bdeggleston/.workon/punisher1/lib/python2.7/site-packages/gevent/greenlet.py", line 390, in run
-            result = self._run(*self.args, **self.kwargs)
-          File "/Users/bdeggleston/code/punisher1/punisher/cluster/cluster.py", line 318, in _execute
-            result = node.execute_retrieval_instruction(instruction, key, args)
-          File "/Users/bdeggleston/code/punisher1/punisher/cluster/node/remote.py", line 159, in execute_retrieval_instruction
-            assert isinstance(response, messages.RetrievalValueResponse)
-        AssertionError
-        <Greenlet at 0x10cf95cd0: _execute(<punisher.cluster.node.remote.RemoteNode object at)> failed with AssertionError
         """
         num_nodes = 10
         self.create_nodes(num_nodes)

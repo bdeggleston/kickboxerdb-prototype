@@ -9,7 +9,7 @@ class LocalNode(BaseNode):
     def __init__(self, store, address=None, node_id=None, name=None, token=None):
         """
         :param store:
-        :param store: punisher.store.redis.RedisStore
+        :param store: kickboxer.store.redis.RedisStore
         :param address:
         :param address:
         :param node_id:
