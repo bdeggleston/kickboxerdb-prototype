@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
 from unittest import TestCase
 
-from punisher.partitioner.md5 import MD5Partitioner
-from punisher.store.redis import RedisStore, Value
-from punisher.utils import serialize_timestamp, deserialize_timestamp
+from kickboxer.partitioner.md5 import MD5Partitioner
+from kickboxer.store.redis import RedisStore, Value
+from kickboxer.utils import serialize_timestamp, deserialize_timestamp
 
 
 class ValueTests(TestCase):

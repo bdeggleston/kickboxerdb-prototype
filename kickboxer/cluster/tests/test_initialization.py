@@ -4,8 +4,8 @@ from unittest import skip
 
 import gevent
 
-from punisher.cluster.cluster import Cluster
-from punisher.tests.base import BaseNodeTestCase, LiteralPartitioner
+from kickboxer.cluster.cluster import Cluster
+from kickboxer.tests.base import BaseNodeTestCase, LiteralPartitioner
 
 
 def random_string(size=6):

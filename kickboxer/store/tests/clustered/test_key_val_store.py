@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import time
 
-from punisher.tests.base import BaseNodeTestCase
+from kickboxer.tests.base import BaseNodeTestCase
 
 
 class BaseClusteredStorageTest(BaseNodeTestCase):

@@ -1,9 +1,9 @@
-from punisher.cluster.node.local import LocalNode
-from punisher.cluster.cluster import Cluster
-from punisher.cluster.peer_server import PeerServer
-from punisher.cluster.client_server import RedisClientServer
-from punisher.partitioner.md5 import MD5Partitioner
-from punisher.store.redis import RedisStore
+from kickboxer.cluster.node.local import LocalNode
+from kickboxer.cluster.cluster import Cluster
+from kickboxer.cluster.peer_server import PeerServer
+from kickboxer.cluster.client_server import RedisClientServer
+from kickboxer.partitioner.md5 import MD5Partitioner
+from kickboxer.store.redis import RedisStore
 
 
 class Punisher(object):

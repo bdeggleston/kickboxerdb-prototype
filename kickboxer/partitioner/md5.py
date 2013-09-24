@@ -2,7 +2,7 @@ from hashlib import md5
 import random
 import struct
 
-from punisher.partitioner.base import BasePartitioner
+from kickboxer.partitioner.base import BasePartitioner
 
 
 class MD5Partitioner(BasePartitioner):

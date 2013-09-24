@@ -7,8 +7,8 @@ import uuid
 
 import msgpack
 
-from punisher.cluster.connection import Connection
-from punisher.utils import serialize_timestamp
+from kickboxer.cluster.connection import Connection
+from kickboxer.utils import serialize_timestamp
 
 
 class Message(object):

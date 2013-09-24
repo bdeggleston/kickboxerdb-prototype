@@ -1,9 +1,9 @@
 from datetime import datetime
 from unittest import TestCase
 
-from punisher.store.redis import RedisStore
+from kickboxer.store.redis import RedisStore
 
-from punisher.tests.base import LiteralPartitioner
+from kickboxer.tests.base import LiteralPartitioner
 
 
 class TokenRangeTest(TestCase):

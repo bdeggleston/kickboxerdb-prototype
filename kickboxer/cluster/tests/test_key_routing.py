@@ -1,6 +1,6 @@
 import gevent
 
-from punisher.tests.base import BaseNodeTestCase, LiteralPartitioner
+from kickboxer.tests.base import BaseNodeTestCase, LiteralPartitioner
 
 
 class KeyRoutingTest(BaseNodeTestCase):

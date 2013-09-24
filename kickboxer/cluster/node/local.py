@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from punisher.cluster.node.base import BaseNode
-from punisher.utils import deserialize_timestamp
+from kickboxer.cluster.node.base import BaseNode
+from kickboxer.utils import deserialize_timestamp
 
 
 class LocalNode(BaseNode):

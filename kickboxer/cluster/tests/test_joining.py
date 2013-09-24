@@ -1,10 +1,10 @@
 from unittest.case import TestCase
 
 import gevent
-from punisher.cluster.cluster import Cluster
+from kickboxer.cluster.cluster import Cluster
 
-from punisher.tests.base import BaseNodeTestCase
-from punisher.cluster.node.remote import RemoteNode
+from kickboxer.tests.base import BaseNodeTestCase
+from kickboxer.cluster.node.remote import RemoteNode
 
 
 class ClusterStartupTest(BaseNodeTestCase):

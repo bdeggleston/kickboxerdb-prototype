@@ -3,10 +3,10 @@ from unittest import TestCase
 
 import gevent
 
-from punisher.cluster.cluster import Cluster
-from punisher.partitioner.base import BasePartitioner
-from punisher.partitioner.md5 import MD5Partitioner
-from punisher.server import Punisher
+from kickboxer.cluster.cluster import Cluster
+from kickboxer.partitioner.base import BasePartitioner
+from kickboxer.partitioner.md5 import MD5Partitioner
+from kickboxer.server import Punisher
 
 
 class BaseNodeTestCase(TestCase):

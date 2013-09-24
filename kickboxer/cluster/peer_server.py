@@ -4,11 +4,11 @@ import uuid
 from gevent.event import Event
 from gevent.server import StreamServer
 
-from punisher.cluster.cluster import Cluster
-from punisher.cluster.connection import Connection
-from punisher.cluster import messages
+from kickboxer.cluster.cluster import Cluster
+from kickboxer.cluster.connection import Connection
+from kickboxer.cluster import messages
 
-from punisher.utils import deserialize_timestamp
+from kickboxer.utils import deserialize_timestamp
 
 
 class PeerServer(StreamServer):

@@ -6,10 +6,10 @@ import gevent
 from gevent.queue import Queue
 from gevent.pool import Pool
 
-from punisher.cluster import messages
-from punisher.cluster.connection import Connection
-from punisher.cluster.node.local import LocalNode
-from punisher.cluster.node.remote import RemoteNode
+from kickboxer.cluster import messages
+from kickboxer.cluster.connection import Connection
+from kickboxer.cluster.node.local import LocalNode
+from kickboxer.cluster.node.remote import RemoteNode
 
 
 class _TokenContainer(object):
@@ -48,7 +48,7 @@ class Cluster(object):
         :param local_node:
         :type local_node:
         :param partitioner:
-        :type partitioner: punisher.partitioner.base.BasePartitioner
+        :type partitioner: kickboxer.partitioner.base.BasePartitioner
         :param seed_peers:
         :type seed_peers:
         :param status:
@@ -100,7 +100,7 @@ class Cluster(object):
 
     @property
     def store(self):
-        """ :rtype: punisher.store.base.BaseStore """
+        """ :rtype: kickboxer.store.base.BaseStore """
         return self.local_node.store
 
     @property

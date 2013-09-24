@@ -2,9 +2,9 @@ from collections import defaultdict
 from datetime import datetime
 
 from blist import sorteddict
-from punisher.store.base import BaseStore
+from kickboxer.store.base import BaseStore
 
-from punisher.utils import serialize_timestamp, deserialize_timestamp
+from kickboxer.utils import serialize_timestamp, deserialize_timestamp
 
 # checkout the multiprocessing module
 # http://cython.org/
@@ -77,7 +77,7 @@ class RedisStore(BaseStore):
     def __init__(self, partitioner):
         """
         :param partitioner:
-        :type partitioner: punisher.partitioner.base.BasePartitioner
+        :type partitioner: kickboxer.partitioner.base.BasePartitioner
         """
         super(RedisStore, self).__init__()
         self.partitioner = partitioner
