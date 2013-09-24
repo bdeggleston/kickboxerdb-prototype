@@ -266,27 +266,6 @@ class Cluster(object):
         else:
             self._initializer_ring = None
 
-    def get_migration_data(self, start_token, max_token, size):
-        return self.store.get_token_range(start_token, max_token, size)
-
-    def retire_token_range(self, start_token, stop_token):
-        """ removes any tokens from the store that are no longer owned or replicated by this node """
-        # check that there's an intersection
-        # TODO: reverse the intersection check, it should only be retiring tokens
-        # that don't fall in the current token range
-        min_token, max_token = self.get_token_range()
-        def retire_range(mn, mx):
-            if start_token < mn:
-                self.store.remove_token_range(start_token, min(stop_token, mn - 1))
-            if stop_token > mx:
-                self.store.remove_token_range(max(start_token, mx + 1), stop_token)
-
-        if min_token < max_token:
-            retire_range(min_token, max_token)
-        else:
-            retire_range(0, max_token)
-            retire_range(min_token, self.partitioner.max_token)
-
     def get_token_range(self):
         """ find the range of tokens that this cluster's node owns or replicates """
         idx = [n.node_id for n in self.token_ring].index(self.node_id)
@@ -297,66 +276,8 @@ class Cluster(object):
         min_token = self.token_ring[(idx - (self.replication_factor - 1)) % len(self.token_ring)].token
         return min_token, max_token
 
-    def _migrate_data(self, node, min_token, max_token, retire_data=False):
-        """
-        migrates data from the given external node onto this node
-
-        :param node:
-        :param min_token:
-        :param max_token:
-        :param retire_data:
-        :return:
-        """
-        # handle a token range that wraps around 0
-        if min_token > max_token:
-            self._migrate_data(node, 0, min_token, retire_data=retire_data)
-            self._migrate_data(node, max_token, self.partitioner.max_token, retire_data=retire_data)
-            return
-
-        local_min = min_token
-        while True:
-            response = node.send_message(messages.DataMigrateRequest(
-                self.node_id,
-                local_min,
-                max_token
-            ))
-            assert isinstance(response, messages.DataMigrationResponse)
-
-            data = pickle.loads(response.data)
-            # return if we've gotten everything we
-            # need from this node
-            if len(data) == 0:
-                break
-
-            # otherwise, throw it into the store
-            tokens = set()
-            for key, val in data:
-                local_min = max(local_min, self.partitioner.get_key_token(key))
-                self.store.set_and_reconcile_raw_value(key, val)
-                tokens.add(self.partitioner.get_key_token(key))
-
-            self._initialization_history[node.node_id] = local_min
-            local_min += 1
-
-            if retire_data:
-                # retire old data on the remote node
-                response = node.send_message(messages.RetireKeyRangeRequest(
-                    self.node_id,
-                    min(tokens),
-                    max(tokens),
-                    ))
-                assert isinstance(response, messages.RetireKeyRangeResponse)
-
     def _initialize_data(self):
         """ handles populating this node with data when it joins an existing cluster """
-        # self._initialization_history = self._initialization_history or {}
-        #
-        # # get the min and max tokens
-        # min_token, max_token = self.get_token_range()
-        #
-        # for node in self._initializer_ring:
-        #     self._migrate_data(node, min_token, max_token, retire_data=True)
-
         idx = self.token_ring.index(self.local_node)
         stream_from = list(self.token_ring[(idx - 1 - self.replication_factor): (idx - 1)])
         stream_from += list(self.token_ring[idx + 1: idx + self.replication_factor])
@@ -390,8 +311,11 @@ class Cluster(object):
                 if node.node_id == self.node_id: continue
                 node.send_message(messages.ChangedTokenRequest(self.node_id, node.node_id, token))
 
+        # bail out if we don't need to do anything
         if old_min == new_min and old_max == new_max:
             return
+
+        # otherwise, stream data in from surrounding nodes
 
     def stream_to_node(self, node_id):
         """
