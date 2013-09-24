@@ -146,7 +146,7 @@ class Cluster(object):
         # migrate data from existing nodes
         # if this node is initializing
         if self.is_initializing:
-            self._initializer = gevent.spawn(self._initialize_data)
+            self.stream_from_replicas()
 
     def stop(self):
         self.is_online = False
@@ -276,7 +276,7 @@ class Cluster(object):
         min_token = self.token_ring[(idx - (self.replication_factor - 1)) % len(self.token_ring)].token
         return min_token, max_token
 
-    def _initialize_data(self):
+    def stream_from_replicas(self):
         """ handles populating this node with data when it joins an existing cluster """
         idx = self.token_ring.index(self.local_node)
         stream_from = list(self.token_ring[(idx - 1 - self.replication_factor): (idx - 1)])

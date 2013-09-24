@@ -40,7 +40,6 @@ class InitializationIntegrationTests(BaseNodeTestCase):
             partitioner=LiteralPartitioner()
         )
         new_node.start()
-        new_node.cluster._initializer.join()
 
         # new node is responsible for 5500 - 5999
         # and replicates 4000 - 5499
@@ -124,7 +123,6 @@ class InitializationIntegrationTests(BaseNodeTestCase):
 
         new_node = self.create_node(cluster_status=Cluster.Status.INITIALIZING)
         new_node.start()
-        new_node.cluster._initializer.join()
 
         expected_data = {k: v for k, v in total_data.items() if new_node.replicates_key(k)}
         store_data = new_node.store._data
