@@ -6,7 +6,7 @@ from kickboxer.partitioner.md5 import MD5Partitioner
 from kickboxer.store.redis import RedisStore
 
 
-class Punisher(object):
+class Kickboxer(object):
     """ punisher server """
 
     def __init__(self,
@@ -19,7 +19,7 @@ class Punisher(object):
                  replication_factor=3,
                  cluster_status=Cluster.Status.INITIALIZING,
                  partitioner=None):
-        super(Punisher, self).__init__()
+        super(Kickboxer, self).__init__()
 
         self.partitioner = partitioner or MD5Partitioner()
         self.store = RedisStore(self.partitioner)

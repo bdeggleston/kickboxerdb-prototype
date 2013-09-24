@@ -6,7 +6,7 @@ import gevent
 from kickboxer.cluster.cluster import Cluster
 from kickboxer.partitioner.base import BasePartitioner
 from kickboxer.partitioner.md5 import MD5Partitioner
-from kickboxer.server import Punisher
+from kickboxer.server import Kickboxer
 
 
 class BaseNodeTestCase(TestCase):
@@ -42,7 +42,7 @@ class BaseNodeTestCase(TestCase):
             seeds = [n for n in self.nodes if is_online(n)] or self.nodes
             seeds = [seeds[0].peer_address] if seeds else None
 
-        node = Punisher(
+        node = Kickboxer(
             client_address=None,
             peer_address=('localhost', port),
             seed_peers=seeds,
