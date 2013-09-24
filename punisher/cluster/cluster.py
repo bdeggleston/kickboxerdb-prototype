@@ -1,8 +1,5 @@
-from collections import namedtuple
 from datetime import datetime
-from hashlib import md5
 import pickle
-import struct
 
 from blist import sortedset
 import gevent
@@ -11,7 +8,6 @@ from gevent.pool import Pool
 
 from punisher.cluster import messages
 from punisher.cluster.connection import Connection
-from punisher.cluster.node.base import BaseNode
 from punisher.cluster.node.local import LocalNode
 from punisher.cluster.node.remote import RemoteNode
 
@@ -75,27 +71,14 @@ class Cluster(object):
         self.is_online = False
         self.status = status
 
-        # initializer bookkeeping
-
-        # the key that this node has been initialized to
-        # initializing currently happens sequentially, ordered
-        # by token, so this can be used to quickly determine
-        # whether this node has a given key, or where to restart
-        # initialization from, if there was an interruption
-        self._initialization_history = {}
-
-        # keeps info about nodes that are currently streaming data
-        # to this node
-        self._streaming_info = {}
+        # the set of node ids currently streaming data to this
+        # node, if any
         self._streaming_nodes = set()
 
-        # the greenlet running the initialization
-        self._initializer = None
-
         # this cluster's view of the token ring
-        # as it relates to streaming data to populate
-        # it's own data store on node join
-        self._initializer_ring = None
+        # before the last token change, to help
+        # coordinate reads while it's streaming
+        self._previous_ring = None
 
     def __contains__(self, item):
         return item in self.nodes
@@ -246,8 +229,6 @@ class Cluster(object):
 
             except Connection.ClosedException:
                 pass
-            # except AssertionError:
-            #     pass
 
     def _refresh_ring(self):
         """ builds a view of the token ring """
@@ -257,14 +238,14 @@ class Cluster(object):
             # there are no nodes to stream data from
             if len(self.nodes) == 1:
                 self.status = Cluster.Status.NORMAL
-                self._initializer_ring = None
+                self._previous_ring = None
                 return
 
             stream_nodes = [n for n in self.nodes.values() if n.node_id != self.node_id]
-            self._initializer_ring = sortedset(stream_nodes, key=lambda n: n.token)
+            self._previous_ring = sortedset(stream_nodes, key=lambda n: n.token)
 
         else:
-            self._initializer_ring = None
+            self._previous_ring = None
 
     def get_token_range(self):
         """ find the range of tokens that this cluster's node owns or replicates """
@@ -431,7 +412,7 @@ class Cluster(object):
         response_timeout = 10.0
 
         def _execute(node):
-            if node.node_id == self.local_node.node_id and self.is_initializing:
+            if node.node_id == self.local_node.node_id and self.is_initializing or self.is_streaming:
                 raise NotImplementedError(
                     'performing queries against intializing nodes is not yet supported'
                 )
@@ -494,7 +475,7 @@ class Cluster(object):
         nodes = self.get_nodes_for_key(key)
 
         def _execute(node):
-            if node.node_id == self.local_node.node_id and self.is_initializing:
+            if node.node_id == self.local_node.node_id and self.is_initializing or self.is_streaming:
                 raise NotImplementedError(
                     'performing queries against intializing nodes is not yet supported'
                 )
