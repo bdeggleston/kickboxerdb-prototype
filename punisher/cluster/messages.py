@@ -259,79 +259,21 @@ class MutationOperationResponse(Message):
 
 # ----------- node initialization / data migration -----------
 
-class DataMigrateRequest(Message):
-    __message_type__ = 701
-
-    def __init__(self, sender_id, from_token, max_token, size=100, message_id=None):
-        """
-        :param from_token: the token to start streaming data from
-        :param size: the number of keys to send
-        """
-        super(DataMigrateRequest, self).__init__(sender_id, message_id)
-        self.from_token = str(from_token)
-        self.max_token = str(max_token)
-        self.size = size
-
-    @property
-    def from_token_long(self):
-        return long(self.from_token)
-
-    @property
-    def max_token_long(self):
-        return long(self.max_token)
-
-
-class DataMigrationResponse(Message):
-    __message_type__ = 702
-
-    def __init__(self, sender_id, data, message_id=None):
-        """
-        :param data: the requested data
-        """
-        super(DataMigrationResponse, self).__init__(sender_id, message_id)
-        self.data = data
-
-
-class RetireKeyRangeRequest(Message):
-    """
-    indicates that the node may remove keys in the given range, if
-    they are no longer owned or replicated by it
-    """
-    __message_type__ = 703
-
-    def __init__(self, sender_id, start_token, stop_token, message_id=None):
-        super(RetireKeyRangeRequest, self).__init__(sender_id, message_id)
-        self.start_token = str(start_token)
-        self.stop_token = str(stop_token)
-
-    @property
-    def start_token_long(self):
-        return long(self.start_token)
-
-    @property
-    def stop_token_long(self):
-        return long(self.stop_token)
-
-
-class RetireKeyRangeResponse(Message):
-    __message_type__ = 704
-
-
 class StreamRequest(Message):
     """
     requests the destination node to stream keys replicated
     by the sending node to the sending node
     """
-    __message_type__ = 705
+    __message_type__ = 701
 
 
 class StreamResponse(Message):
-    __message_type__ = 706
+    __message_type__ = 702
 
 
 class StreamDataRequest(Message):
     """ sends 1 or more key/value pairs """
-    __message_type__ = 707
+    __message_type__ = 703
 
     def __init__(self, sender_id, data, message_id=None):
         super(StreamDataRequest, self).__init__(sender_id, message_id)
@@ -345,15 +287,15 @@ class StreamDataRequest(Message):
 
 
 class StreamDataResponse(Message):
-    __message_type__ = 708
+    __message_type__ = 704
 
 class StreamCompleteRequest(Message):
     """ sent when a node has finished streaming data to another node """
-    __message_type__ = 709
+    __message_type__ = 705
 
 
 class StreamCompleteResponse(Message):
-    __message_type__ = 710
+    __message_type__ = 716
 
 
 # ----------- token discovery / communication -----------

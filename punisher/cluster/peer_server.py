@@ -114,25 +114,6 @@ class PeerServer(StreamServer):
                     self.node_id, 'error processing request: {} \n {}'.format(request, ex)
                 )
 
-        elif isinstance(request, messages.DataMigrateRequest):
-            #DEPRECATED
-            return messages.DataMigrationResponse(
-                self.node_id,
-                pickle.dumps(
-                    self.cluster.get_migration_data(
-                        request.from_token_long,
-                        request.max_token_long,
-                        request.size
-                    ),
-                    protocol=pickle.HIGHEST_PROTOCOL
-                )
-            )
-
-        elif isinstance(request, messages.RetireKeyRangeRequest):
-            #DEPRECATED
-            self.cluster.retire_token_range(request.start_token_long, request.stop_token_long)
-            return messages.RetireKeyRangeResponse(self.node_id)
-
         elif isinstance(request, messages.StreamRequest):
             self.cluster.stream_to_node(request.sender)
             return messages.StreamResponse(self.node_id)

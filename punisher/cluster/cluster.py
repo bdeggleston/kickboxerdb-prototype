@@ -384,14 +384,14 @@ class Cluster(object):
         self._refresh_ring()
         new_min, new_max = self.get_token_range()
 
-        if old_min == new_min and old_max == new_max:
-            return
-
         # alert other nodes of the change
         if alert_cluster:
             for node in self.nodes:
                 if node.node_id == self.node_id: continue
                 node.send_message(messages.ChangedTokenRequest(self.node_id, node.node_id, token))
+
+        if old_min == new_min and old_max == new_max:
+            return
 
     def stream_to_node(self, node_id):
         """
