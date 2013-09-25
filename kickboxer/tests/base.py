@@ -34,7 +34,8 @@ class BaseNodeTestCase(TestCase):
                     node_id=None,
                     cluster_status=Cluster.Status.NORMAL,
                     token=None,
-                    partitioner=_default_partitioner):
+                    partitioner=_default_partitioner,
+                    name=None):
         port = self.next_port
         self.next_port += 1
         if not seeds:
@@ -46,7 +47,7 @@ class BaseNodeTestCase(TestCase):
             client_address=None,
             peer_address=('localhost', port),
             seed_peers=seeds,
-            name='Node{}'.format(port),
+            name=name or 'Node{}'.format(port),
             node_id=node_id,
             cluster_status=cluster_status,
             token=token,
@@ -66,7 +67,8 @@ class BaseNodeTestCase(TestCase):
             tokens = [None] * num_nodes
         return [self.create_node(cluster_status=cluster_status,
                                  token=tokens[i],
-                                 partitioner=partitioner)
+                                 partitioner=partitioner,
+                                 name='N{}'.format(i))
                 for i in range(num_nodes)]
 
     def start_cluster(self):
