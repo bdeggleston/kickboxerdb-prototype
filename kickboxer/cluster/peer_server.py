@@ -114,6 +114,10 @@ class PeerServer(StreamServer):
                     self.node_id, 'error processing request: {} \n {}'.format(request, ex)
                 )
 
+        elif isinstance(request, messages.ChangedTokenRequest):
+            self.cluster.change_token(request.new_token_long, request.node_uuid, alert_cluster=False)
+            return messages.ChangedTokenResponse(self.node_id)
+
         elif isinstance(request, messages.StreamRequest):
             self.cluster.stream_to_node(request.sender)
             return messages.StreamResponse(self.node_id)

@@ -278,7 +278,7 @@ class Cluster(object):
         from_node = self.nodes[ring[(idx - 1) % len(ring)]]
         self._request_streamed_data(from_node)
 
-    def change_token(self, node_id, token, alert_cluster=True):
+    def change_token(self, token, node_id=None, alert_cluster=True):
         """
         Changes the given node's token and initiates streaming from new replica nodes
 
@@ -293,15 +293,12 @@ class Cluster(object):
 
         N0 should now control N1's old tokens, and N1 should control half of N6's tokens
 
-        It seems like the best thing to do is have N1 stream it's data to N0, and N6 stream
-        it's data to N1, or to have each displaced node stream data from both adjacent nodes
+        After the token has been changed, each node should check if the node to it's left
+        has changed. If it has, it should stream data from the left. If the node to the right
+        has changed, then it should stream data from the right
 
-        after the token has been changed, this cluster should check if the node to it's left
-        has changed. If it has, it should stream data form the left. If the node to the right
-        has changed, then it should stream data form the right
-
-        :param node_id:
-        :param token:
+        :param token: the new token
+        :param node_id: the id of the node to move. If it's None, the local node will be moved
         :param alert_cluster: indicates that the other nodes in the cluster
             should be notified of the change
         """
@@ -322,7 +319,21 @@ class Cluster(object):
                 if node.node_id == self.node_id: continue
                 node.send_message(messages.ChangedTokenRequest(self.node_id, node.node_id, token))
 
-        # TODO: determine which, if any, node to stream data from
+        # determine which, if any, node to stream data from
+        old_idx = old_ring.index(self.node_id)
+        new_idx = new_ring.index(self.node_id)
+
+        old_left = old_ring[(old_idx - 1) % len(old_ring)]
+        new_left = new_ring[(new_idx - 1) % len(new_ring)]
+
+        if old_left != new_left:
+            self._request_streamed_data(self.nodes[new_left])
+
+        old_right = old_ring[(old_idx + 1) % len(old_ring)]
+        new_right = new_ring[(new_idx + 1) % len(new_ring)]
+
+        if old_right != new_right:
+            self._request_streamed_data(self.nodes[new_right])
 
     def remove_node(self, node_id, alert_cluster=True):
         """
