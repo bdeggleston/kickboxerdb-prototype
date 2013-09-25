@@ -86,6 +86,9 @@ class Cluster(object):
     def __len__(self):
         return len(self.nodes)
 
+    def __repr__(self):
+        return '<Cluster name={} token={}>'.format(self.name, self.token)
+
     @property
     def node_id(self):
         return self.local_node.node_id

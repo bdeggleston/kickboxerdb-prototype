@@ -55,6 +55,9 @@ class Kickboxer(object):
             self.client_address,
             cluster=self.cluster) if self.client_address else None
 
+    def __repr__(self):
+        return '<Kickboxer name={} token={}>'.format(self.name, self.token)
+
     @property
     def node_id(self):
         return self.local_node.node_id
@@ -62,6 +65,10 @@ class Kickboxer(object):
     @property
     def token(self):
         return self.local_node.token
+
+    @property
+    def name(self):
+        return self.local_node.name
 
     def start(self):
         self.peer_server.start()
