@@ -129,7 +129,7 @@ class Cluster(object):
         # migrate data from existing nodes
         # if this node is initializing
         if self.is_initializing:
-            self.stream_from_replicas()
+            self.join_cluster()
 
     def stop(self):
         self.is_online = False
@@ -257,18 +257,48 @@ class Cluster(object):
         min_token = self.token_ring[(idx - (self.replication_factor - 1)) % len(self.token_ring)].token
         return min_token, max_token
 
-    def stream_from_replicas(self):
-        """ handles populating this node with data when it joins an existing cluster """
-        idx = self.token_ring.index(self.local_node)
-        stream_from = list(self.token_ring[(idx - 1 - self.replication_factor): (idx - 1)])
-        stream_from += list(self.token_ring[idx + 1: idx + self.replication_factor])
+    def join_cluster(self):
+        """
+        called when a node is first added to the cluster
 
-        for node in stream_from:
-            self._request_streamed_data(node)
+        When changing the token ring from this:
+        N0      N1      N2      N3      N4      N5      N6      N7      N8      N9
+        [00    ][10    ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+
+        to this:
+        N0  N10 N1      N2      N3      N4      N5      N6      N7      N8      N9
+        [00][05][10    ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+        |--|->
+
+        N10 should stream data from the node to it's left, since it's taking control
+        of a portion of it's previous token space
+        """
+        ring = [n.node_id for n in self.token_ring]
+        idx = ring.index(self.node_id)
+        from_node = self.nodes[ring[(idx - 1) % len(ring)]]
+        self._request_streamed_data(from_node)
 
     def change_token(self, node_id, token, alert_cluster=True):
         """
         Changes the given node's token and initiates streaming from new replica nodes
+
+        When changing the token ring from this:
+        N0      N1      N2      N3      N4      N5      N6      N7      N8      N9
+        [00    ][10    ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+                 --> --> --> --> --> --> --> --> --> --> -->|
+        to this:
+        N0              N2      N3      N4      N5      N6  N1* N7      N8      N9
+        [00            ][20    ][30    ][40    ][50    ][60][65][70    ][80    ][90    ]
+                <-------|------|                        |--|->
+
+        N0 should now control N1's old tokens, and N1 should control half of N6's tokens
+
+        It seems like the best thing to do is have N1 stream it's data to N0, and N6 stream
+        it's data to N1, or to have each displaced node stream data from both adjacent nodes
+
+        after the token has been changed, this cluster should check if the node to it's left
+        has changed. If it has, it should stream data form the left. If the node to the right
+        has changed, then it should stream data form the right
 
         :param node_id:
         :param token:
@@ -281,10 +311,10 @@ class Cluster(object):
         if token == node.token:
             return
 
-        old_min, old_max = self.get_token_range()
+        old_ring = [n.node_id for n in self.token_ring]
         node.token = token
         self._refresh_ring()
-        new_min, new_max = self.get_token_range()
+        new_ring = [n.node_id for n in self.token_ring]
 
         # alert other nodes of the change
         if alert_cluster:
@@ -292,18 +322,27 @@ class Cluster(object):
                 if node.node_id == self.node_id: continue
                 node.send_message(messages.ChangedTokenRequest(self.node_id, node.node_id, token))
 
-        # bail out if we don't need to do anything
-        if old_min == new_min and old_max == new_max:
-            return
-
-        # otherwise, stream data in from surrounding nodes
-        self.stream_from_replicas()
+        # TODO: determine which, if any, node to stream data from
 
     def remove_node(self, node_id, alert_cluster=True):
         """
-        removes the given node from the token ring, when manually
-        retiring node, the node should be left up until all other
-        nodes are finished streaming data from the node
+        removes the given node from the token ring
+
+        removing N1
+        N0      N1      N2      N3      N4      N5      N6      N7      N8      N9
+        [0     ][10    ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+                 xxxxxx
+        to this:
+        N0              N2      N3      N4      N5      N6      N7      N8      N9
+        [0             ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+                 <------|------|
+
+        N0 should now control N1's old tokens and  N0 should stream data from N2
+
+        After the node is removed from the ring, the cluster should check if node to
+        it's right has changed, if it has, it should stream data from it. If the node
+        to it's left has changed, it should not stream data from that node, since it
+        was already replicating the token space that the new node was responsible for
 
         :param node_id:
         :param alert_cluster: indicates that the other nodes in the cluster
@@ -331,9 +370,7 @@ class Cluster(object):
         if old_min == new_min and old_max == new_max:
             return
 
-        # otherwise, stream data in from surrounding nodes
-        self.stream_from_replicas()
-
+        # TODO: determine which, if any, node to stream data from
 
     def stream_to_node(self, node_id):
         """
