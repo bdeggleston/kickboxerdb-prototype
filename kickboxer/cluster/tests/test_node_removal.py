@@ -59,9 +59,10 @@ class NodeRemovalIntegrationTest(BaseNodeTestCase):
         self.assertNotEqual(n0.cluster.status, Cluster.Status.STREAMING)
         self.assertNotEqual(n1.cluster.status, Cluster.Status.STREAMING)
 
-        # check the keys for n0
-        expected = {k for k, v in total_data.items() if 1000 <= int(k) < 2000}
+        # check the keys for n0, check the keys in sorted order, to make it easier
+        # to understand where problems started in the streaming logic
+        expected = sorted(list({int(k) for k, v in total_data.items() if 1000 <= int(k) < 2000}))
         all_keys = n1.store.all_keys()
         for key in expected:
-            self.assertIn(key, all_keys)
+            self.assertIn(str(key), all_keys)
 

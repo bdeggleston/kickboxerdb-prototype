@@ -65,17 +65,25 @@ class TokenChangeIntegrationTest(BaseNodeTestCase):
         self.assertNotEqual(n0.cluster.status, Cluster.Status.STREAMING)
         self.assertNotEqual(n1.cluster.status, Cluster.Status.STREAMING)
 
+        # check that all nodes have the correct token
+        for i, node in enumerate(self.nodes):
+            if i == 1:
+                self.assertEquals(node.token, 6500)
+            else:
+                self.assertEquals(node.token, i * 1000)
+
         # check the keys for n0
         expected = {k for k, v in total_data.items() if 1000 <= int(k) < 2000}
         all_keys = n1.store.all_keys()
         for key in expected:
             self.assertIn(key, all_keys)
 
-        # check the keys for n1
-        expected = {k for k, v in total_data.items() if 4000 <= int(k) < 8000}
+        # check the keys for n1, check the keys in sorted order, to make it easier
+        # to understand where problems started in the streaming logic
+        expected = sorted(list({int(k) for k, v in total_data.items() if 5000 <= int(k) < 7000}))
         all_keys = n1.store.all_keys()
         for key in expected:
-            self.assertIn(key, all_keys)
+            self.assertIn(str(key), all_keys)
 
     def test_minor_token_change(self):
         """
