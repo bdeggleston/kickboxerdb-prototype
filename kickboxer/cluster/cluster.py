@@ -308,21 +308,34 @@ class Cluster(object):
             should be notified of the change
         """
         node_id = node_id or self.node_id
-        node = self.nodes[node_id]
+        changed_node = self.nodes[node_id]
 
-        if token == node.token:
+        def _alert_cluster():
+            # alert other nodes of the change
+            if alert_cluster:
+                for dst_node in self.nodes.values():
+                    if dst_node.node_id == self.node_id: continue
+                    dst_node.send_message(
+                        messages.ChangedTokenRequest(
+                            self.node_id,
+                            changed_node.node_id,
+                            token)
+                    )
+
+        # return if this node already knows
+        # about the token
+        if token == changed_node.token:
+            _alert_cluster()
             return
 
+        # perform ring update
         old_ring = [n.node_id for n in self.token_ring]
-        node.token = token
+        changed_node.token = token
         self._refresh_ring()
         new_ring = [n.node_id for n in self.token_ring]
 
         # alert other nodes of the change
-        if alert_cluster:
-            for node in self.nodes.values():
-                if node.node_id == self.node_id: continue
-                node.send_message(messages.ChangedTokenRequest(self.node_id, node.node_id, token))
+        _alert_cluster()
 
         # determine which, if any, node to stream data from
         old_idx = old_ring.index(self.node_id)
@@ -335,7 +348,7 @@ class Cluster(object):
             response = src_node.send_message(
                 messages.ChangedTokenRequest(
                     self.node_id,
-                    node.node_id,
+                    changed_node.node_id,
                     token
                 )
             )
