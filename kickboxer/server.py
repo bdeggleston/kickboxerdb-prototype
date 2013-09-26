@@ -66,10 +66,6 @@ class Kickboxer(object):
     def token(self):
         return self.local_node.token
 
-    @property
-    def name(self):
-        return self.local_node.name
-
     def start(self):
         self.peer_server.start()
         self.peer_server.start_event.wait(timeout=1)

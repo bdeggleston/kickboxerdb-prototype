@@ -171,11 +171,6 @@ class Cluster(object):
         self._refresh_ring()
         return node
 
-    def remove_node(self, node_id):
-        node = self.nodes.pop(node_id, None)
-        self._refresh_ring()
-        return node
-
     def get_node(self, node_id):
         """ :rtype: RemoteNode """
         return self.nodes.get(node_id)
@@ -293,12 +288,19 @@ class Cluster(object):
         N0              N2      N3      N4      N5      N6  N1* N7      N8      N9
         [00            ][20    ][30    ][40    ][50    ][60][65][70    ][80    ][90    ]
                 <-------|------|                        |--|->
+                |------|----------->
 
         N0 should now control N1's old tokens, and N1 should control half of N6's tokens
 
         After the token has been changed, each node should check if the node to it's left
         has changed. If it has, it should stream data from the left. If the node to the right
         has changed, then it should stream data from the right
+
+        There is also
+
+        If a node starts streaming in data as soon as it knows it's token space changes, there
+        will be a race condition that may prevent the correct data being streamed to the node
+        if the node doing the streaming is not aware of the token when it receives the request.
 
         :param token: the new token
         :param node_id: the id of the node to move. If it's None, the local node will be moved
@@ -326,17 +328,34 @@ class Cluster(object):
         old_idx = old_ring.index(self.node_id)
         new_idx = new_ring.index(self.node_id)
 
-        old_left = old_ring[(old_idx - 1) % len(old_ring)]
-        new_left = new_ring[(new_idx - 1) % len(new_ring)]
+        def _stream_from_src(src_node):
+            # guarantee that the src node is already
+            # aware of the token change by blocking
+            # until it has acknowledged the token change
+            response = src_node.send_message(
+                messages.ChangedTokenRequest(
+                    self.node_id,
+                    node.node_id,
+                    token
+                )
+            )
+            assert isinstance(response, messages.ChangedTokenResponse)
+            self._request_streamed_data(src_node)
 
+        def _get_offset_nodes(offset):
+            old_node = old_ring[(old_idx + offset) % len(old_ring)]
+            new_node = new_ring[(new_idx + offset) % len(new_ring)]
+            return old_node, new_node
+
+        old_left, new_left = _get_offset_nodes(-1)
         if old_left != new_left:
-            self._request_streamed_data(self.nodes[new_left])
+            src_node = self.nodes[new_left]
+            _stream_from_src(src_node)
 
-        old_right = old_ring[(old_idx + 1) % len(old_ring)]
-        new_right = new_ring[(new_idx + 1) % len(new_ring)]
-
+        old_right, new_right = _get_offset_nodes(1)
         if old_right != new_right:
-            self._request_streamed_data(self.nodes[new_right])
+            src_node = self.nodes[new_right]
+            _stream_from_src(src_node)
 
     def remove_node(self, node_id, alert_cluster=True):
         """
@@ -345,7 +364,7 @@ class Cluster(object):
         removing N1
         N0      N1      N2      N3      N4      N5      N6      N7      N8      N9
         [0     ][10    ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
-                 xxxxxx
+                |xxxxxx|
         to this:
         N0              N2      N3      N4      N5      N6      N7      N8      N9
         [0             ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
