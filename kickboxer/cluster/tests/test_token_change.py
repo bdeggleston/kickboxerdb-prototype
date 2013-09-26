@@ -98,6 +98,4 @@ class TokenChangeIntegrationTest(BaseNodeTestCase):
             not required ^^
         N2 will be responsible for more data from N0's token space, but it should
         already have it from replicating N1
-
-        :return:
         """
