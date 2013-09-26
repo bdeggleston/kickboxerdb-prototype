@@ -347,7 +347,7 @@ class RemoveNodeRequest(Message):
 
     def __init__(self, sender_id, node_id, message_id=None):
         super(RemoveNodeRequest, self).__init__(sender_id, message_id)
-        self.node_id = self._uuid_bytes()
+        self.node_id = self._uuid_bytes(node_id)
 
     @property
     def node_uuid(self):

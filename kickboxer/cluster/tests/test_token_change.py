@@ -66,13 +66,13 @@ class TokenChangeIntegrationTest(BaseNodeTestCase):
         self.assertNotEqual(n1.cluster.status, Cluster.Status.STREAMING)
 
         # check the keys for n0
-        expected = {k for k, v in total_data.items() if 1000 <= int(k) < 2000 }
+        expected = {k for k, v in total_data.items() if 1000 <= int(k) < 2000}
         all_keys = n1.store.all_keys()
         for key in expected:
             self.assertIn(key, all_keys)
 
         # check the keys for n1
-        expected = {k for k, v in total_data.items() if 4000 <= int(k) < 8000 }
+        expected = {k for k, v in total_data.items() if 4000 <= int(k) < 8000}
         all_keys = n1.store.all_keys()
         for key in expected:
             self.assertIn(key, all_keys)
