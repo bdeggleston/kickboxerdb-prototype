@@ -357,7 +357,7 @@ class Cluster(object):
             src_node = self.nodes[new_right]
             _stream_from_src(src_node)
 
-    def remove_node(self, node_id, alert_cluster=True):
+    def remove_node(self, node_id=None, alert_cluster=True):
         """
         removes the given node from the token ring
 
@@ -372,7 +372,7 @@ class Cluster(object):
 
         N0 should now control N1's old tokens and  N0 should stream data from N2
 
-        After the node is removed from the ring, the cluster should check if node to
+        After the node is removed from the ring, each node should check if the node to
         it's right has changed, if it has, it should stream data from it. If the node
         to it's left has changed, it should not stream data from that node, since it
         was already replicating the token space that the new node was responsible for
@@ -381,7 +381,12 @@ class Cluster(object):
         :param alert_cluster: indicates that the other nodes in the cluster
             should be notified of the change
         """
-        node = self.nodes[node_id]
+        node_id = node_id or self.node_id
+        try:
+            node = self.nodes[node_id]
+        except KeyError:
+            return
+
         def _alert_cluster():
             if alert_cluster:
                 for dst_node in self.nodes.values():
@@ -392,18 +397,39 @@ class Cluster(object):
             _alert_cluster()
             return
 
-        old_min, old_max = self.get_token_range()
+        old_ring = [n.node_id for n in self.token_ring]
         self.nodes.pop(node.node_id)
         self._refresh_ring()
-        new_min, new_max = self.get_token_range()
+        new_ring = [n.node_id for n in self.token_ring]
 
         _alert_cluster()
 
-        # bail out if we don't need to do anything
-        if old_min == new_min and old_max == new_max:
-            return
+        # determine which, if any, node to stream data from
+        old_idx = old_ring.index(self.node_id)
+        new_idx = new_ring.index(self.node_id)
 
-        # TODO: determine which, if any, node to stream data from
+        def _stream_from_src(src_node):
+            # guarantee that the src node is already
+            # aware of the removed node by blocking
+            # until it has acknowledged the token change
+            response = src_node.send_message(
+                messages.RemoveNodeRequest(
+                    self.node_id,
+                    node.node_id
+                )
+            )
+            assert isinstance(response, messages.RemoveNodeResponse)
+            self._request_streamed_data(src_node)
+
+        def _get_offset_nodes(offset):
+            old_node = old_ring[(old_idx + offset) % len(old_ring)]
+            new_node = new_ring[(new_idx + offset) % len(new_ring)]
+            return old_node, new_node
+
+        old_right, new_right = _get_offset_nodes(1)
+        if old_right != new_right:
+            src_node = self.nodes[new_right]
+            _stream_from_src(src_node)
 
     def stream_to_node(self, node_id):
         """

@@ -118,6 +118,10 @@ class PeerServer(StreamServer):
             self.cluster.change_token(request.new_token_long, request.node_uuid, alert_cluster=False)
             return messages.ChangedTokenResponse(self.node_id)
 
+        elif isinstance(request, messages.RemoveNodeRequest):
+            self.cluster.remove_node(request.node_uuid, alert_cluster=False)
+            return messages.RemoveNodeResponse(self.node_id)
+
         elif isinstance(request, messages.StreamRequest):
             self.cluster.stream_to_node(request.sender)
             return messages.StreamResponse(self.node_id)
@@ -161,7 +165,6 @@ class PeerServer(StreamServer):
     def start_accepting(self):
         super(PeerServer, self).start_accepting()
         self.start_event.set()
-
 
     def kill(self):
         super(PeerServer, self).kill()
