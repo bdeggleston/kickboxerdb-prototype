@@ -76,3 +76,20 @@ class TokenChangeIntegrationTest(BaseNodeTestCase):
         all_keys = n1.store.all_keys()
         for key in expected:
             self.assertIn(key, all_keys)
+
+    def test_minor_token_change(self):
+        """
+        When changing the token ring from this:
+        N0      N1      N2      N3      N4      N5      N6      N7      N8      N9
+        [00    ][10    ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+
+        to this:
+        N0         N1   N2      N3      N4      N5      N6      N7      N8      N9
+        [00        [15][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+                |-|------->
+            not required ^^
+        N2 will be responsible for more data from N0's token space, but it should
+        already have it from replicating N1
+
+        :return:
+        """
