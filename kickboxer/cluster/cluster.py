@@ -415,7 +415,7 @@ class Cluster(object):
         """
         node_id = node_id or self.node_id
         try:
-            node = self.nodes[node_id]
+            removed_node = self.nodes[node_id]
         except KeyError:
             return
 
@@ -423,7 +423,7 @@ class Cluster(object):
             if alert_cluster:
                 for dst_node in self.nodes.values():
                     if dst_node.node_id == self.node_id: continue
-                    dst_node.send_message(messages.RemoveNodeRequest(self.node_id, node.node_id))
+                    dst_node.send_message(messages.RemoveNodeRequest(self.node_id, removed_node.node_id))
 
         # if this is the node being removed, let the
         # other nodes know about it and do nothing else
@@ -432,7 +432,7 @@ class Cluster(object):
             return
 
         old_ring = [n.node_id for n in self.token_ring]
-        self.nodes.pop(node.node_id)
+        self.nodes.pop(removed_node.node_id)
         self._refresh_ring()
         new_ring = [n.node_id for n in self.token_ring]
 
@@ -449,7 +449,7 @@ class Cluster(object):
             response = src_node.send_message(
                 messages.RemoveNodeRequest(
                     self.node_id,
-                    node.node_id
+                    removed_node.node_id
                 )
             )
             assert isinstance(response, messages.RemoveNodeResponse)
@@ -462,9 +462,11 @@ class Cluster(object):
 
         old_right, new_right = _get_offset_nodes(1)
         if old_right != new_right:
-
-            src_node = self.nodes[new_right]
-            _stream_from_src(src_node)
+            try:
+                _stream_from_src(removed_node)
+            except Connection.ClosedException:
+                src_node = self.nodes[new_right]
+                _stream_from_src(src_node)
 
     def stream_to_node(self, node_id):
         """
