@@ -81,7 +81,17 @@ class BaseNodeTestCase(TestCase):
             for peer in self.nodes:
                 self.assertIn(peer.node_id, node.cluster.nodes)
 
+    def block_while_streaming(self):
+        """ blocks the test until all nodes have completed streaming """
+        while any([n.cluster.status == Cluster.Status.STREAMING for n in self.nodes]):
+            gevent.sleep(0)
 
+        for i, node in enumerate(self.nodes):
+            self.assertNotEqual(
+                node.cluster.status,
+                Cluster.Status.STREAMING,
+                'node at idx {} is still reporting streaming'.format(i)
+            )
 
 
 class LiteralPartitioner(BasePartitioner):
