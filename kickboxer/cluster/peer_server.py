@@ -85,12 +85,11 @@ class PeerServer(StreamServer):
             return messages.DiscoverPeersResponse(self.node_id, peer_data)
 
         elif isinstance(request, messages.RetrievalValueRequest):
-            if request.instruction not in self.cluster.store.retrieval_instructions:
-                return messages.ErrorResponse(
-                    self.node_id, '{} is not a valid read instruction'.format(request.instruction)
-                )
-
-            val = getattr(self.cluster.store, request.instruction)(request.key, *request.args)
+            val = self.cluster.route_local_retrieval_instruction(
+                request.instruction,
+                request.key,
+                request.args
+            )
             if val is None:
                 return messages.UnknownKeyResponse(self.node_id)
             else:
@@ -100,14 +99,14 @@ class PeerServer(StreamServer):
                 )
 
         elif isinstance(request, messages.MutationOperationRequest):
-            if request.instruction not in self.cluster.store.mutation_instructions:
-                return messages.ErrorResponse(
-                    self.node_id, '{} is not a mutation instruction'.format(request.instruction)
-                )
-
             try:
-                ts = deserialize_timestamp(request.timestamp) if request.timestamp else request.timestamp
-                result = getattr(self.cluster.store, request.instruction)(request.key, *request.args, timestamp=ts)
+                timestamp = deserialize_timestamp(request.timestamp) if request.timestamp else request.timestamp
+                result = self.cluster.route_local_mutation_instruction(
+                    request.instruction,
+                    request.key,
+                    request.args,
+                    timestamp
+                )
                 return messages.MutationOperationResponse(self.node_id, result)
             except Exception as ex:
                 return messages.ErrorResponse(

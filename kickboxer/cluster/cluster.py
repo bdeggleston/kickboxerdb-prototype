@@ -40,6 +40,9 @@ class Cluster(object):
         JOINING_NODE    = 'JOINING_NODE'
         REMOVED_NODE    = 'REMOVED_NODE'
 
+    class ClusterException(Exception): pass
+    class ClusterQueryException(ClusterException): pass
+
     default_read_consistency = ConsistencyLevel.QUORUM
     default_write_consistency = ConsistencyLevel.QUORUM
 
@@ -557,6 +560,18 @@ class Cluster(object):
         token = self.partitioner.get_key_token(key)
         return self.get_nodes_for_token(token)
 
+    def route_local_retrieval_instruction(self, instruction, key, args):
+        """
+        routes a local retrieval instruction to the store, or streaming nodes if applicable
+
+        :param instruction:
+        :param key:
+        :param args:
+        """
+        if instruction not in self.store.retrieval_instructions:
+            raise Cluster.ClusterQueryException("unknown retrieval instruction: {}".format(instruction))
+        return getattr(self.store, instruction)(key, *args)
+
     def _finalize_retrieval(self, instruction, key, args, gpool, greenlets):
         """
         finalizes the retrieval, repairing any discrepancies in data
@@ -594,11 +609,10 @@ class Cluster(object):
         response_timeout = 10.0
 
         def _execute(node):
-            if node.node_id == self.local_node.node_id and self.is_initializing or self.is_streaming:
-                raise NotImplementedError(
-                    'performing queries against intializing nodes is not yet supported'
-                )
-            result = node.execute_retrieval_instruction(instruction, key, args)
+            if node.node_id == self.node_id:
+                result = self.route_local_retrieval_instruction(instruction, key, args)
+            else:
+                result = node.execute_retrieval_instruction(instruction, key, args)
             results.put(result)
             return result
         pool = Pool(50)
@@ -625,6 +639,19 @@ class Cluster(object):
             reconciler.join()
 
         return result.data
+
+    def route_local_mutation_instruction(self, instruction, key, args, timestamp):
+        """
+        routes a local mutation instruction to the store, or streaming nodes if applicable
+
+        :param instruction:
+        :param key:
+        :param args:
+        :param timestamp:
+        """
+        if instruction not in self.store.mutation_instructions:
+            raise Cluster.ClusterQueryException("unknown mutation instruction: {}".format(instruction))
+        return getattr(self.store, instruction)(key, *args, timestamp=timestamp)
 
     def _finalize_mutation(self, instruction, key, args, timestamp, gpool, greenlets):
         """
@@ -657,11 +684,10 @@ class Cluster(object):
         nodes = self.get_nodes_for_key(key)
 
         def _execute(node):
-            if node.node_id == self.local_node.node_id and self.is_initializing or self.is_streaming:
-                raise NotImplementedError(
-                    'performing queries against intializing nodes is not yet supported'
-                )
-            result = node.execute_mutation_instruction(instruction, key, args, timestamp)
+            if node.node_id == self.local_node.node_id:
+                result = self.route_local_mutation_instruction(instruction, key, args, timestamp)
+            else:
+                result = node.execute_mutation_instruction(instruction, key, args, timestamp)
             results.put(result)
             return result
 
