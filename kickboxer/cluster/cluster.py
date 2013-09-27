@@ -374,6 +374,25 @@ class Cluster(object):
         """
         removes the given node from the token ring
 
+        there are 2 scenarios to deal with in regards to streaming data in:
+
+        * if the removed node is still reachable, it should stream it's data
+          to it's previous left node
+
+        removing N1
+        N0      N1      N2      N3      N4      N5      N6      N7      N8      N9
+        [0     ][10    ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+                |xxxxxx|
+        to this:
+        N0              N2      N3      N4      N5      N6      N7      N8      N9
+        [0             ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
+                 ^^^^^^
+                [10xxxx]
+
+
+        * if the removed node is no longer reachable, the removed node's left node
+          should stream the removed node's right node
+
         removing N1
         N0      N1      N2      N3      N4      N5      N6      N7      N8      N9
         [0     ][10    ][20    ][30    ][40    ][50    ][60    ][70    ][80    ][90    ]
@@ -443,6 +462,7 @@ class Cluster(object):
 
         old_right, new_right = _get_offset_nodes(1)
         if old_right != new_right:
+
             src_node = self.nodes[new_right]
             _stream_from_src(src_node)
 
