@@ -7,17 +7,21 @@ class Connection(object):
     class ClosedException(Exception):
         """ Called when the connection is closed """
 
-    def __init__(self, sckt):
+    def __init__(self, sckt, timeout=None):
         assert isinstance(sckt, socket.socket)
         self.socket = sckt
         self.is_open = True
+        self.timeout = timeout
+        self.socket.settimeout(self.timeout)
 
     @classmethod
     def connect(cls, address, timeout=30.0):
         s = socket.socket()
         s.connect(address)
-        s.settimeout(timeout)
-        return Connection(s)
+        return Connection(s, timeout=timeout)
+
+    def set_timeout(self, timeout):
+        self.socket.settimeout(timeout)
 
     def read(self, size):
         if not self.is_open:
