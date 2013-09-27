@@ -26,14 +26,19 @@ class Cluster(object):
     """
 
     class Status(object):
-        INITIALIZING    = 0
-        STREAMING       = 1
-        NORMAL          = 2
+        INITIALIZING    = 'INITIALIZING'
+        STREAMING       = 'STREAMING'
+        NORMAL          = 'NORMAL'
 
     class ConsistencyLevel(object):
-        ONE     = 1
-        QUORUM  = 2
-        ALL     = 3
+        ONE     = 'ONE'
+        QUORUM  = 'QUORUM'
+        ALL     = 'ALL'
+
+    class StreamingReason(object):
+        TOKEN_CHANGE    = 'TOKEN_CHANGE'
+        JOINING_NODE    = 'JOINING_NODE'
+        REMOVED_NODE    = 'REMOVED_NODE'
 
     default_read_consistency = ConsistencyLevel.QUORUM
     default_write_consistency = ConsistencyLevel.QUORUM
@@ -79,6 +84,11 @@ class Cluster(object):
         # before the last token change, to help
         # coordinate reads while it's streaming
         self._previous_ring = None
+
+        # the reason this node is streaming,
+        # this will determing how queries are
+        # routed while it's streaming
+        self._streaming_reason = None
 
     def __contains__(self, item):
         return item in self.nodes
@@ -274,7 +284,7 @@ class Cluster(object):
         ring = [n.node_id for n in self.token_ring]
         idx = ring.index(self.node_id)
         from_node = self.nodes[ring[(idx - 1) % len(ring)]]
-        self._request_streamed_data(from_node)
+        self._request_streamed_data(from_node, reason=Cluster.StreamingReason.JOINING_NODE)
 
     def change_token(self, token, node_id=None, alert_cluster=True):
         """
@@ -353,7 +363,7 @@ class Cluster(object):
                 )
             )
             assert isinstance(response, messages.ChangedTokenResponse)
-            self._request_streamed_data(src_node)
+            self._request_streamed_data(src_node, reason=Cluster.StreamingReason.TOKEN_CHANGE)
 
         def _get_offset_nodes(offset):
             old_node = old_ring[(old_idx + offset) % len(old_ring)]
@@ -453,7 +463,7 @@ class Cluster(object):
                 )
             )
             assert isinstance(response, messages.RemoveNodeResponse)
-            self._request_streamed_data(src_node)
+            self._request_streamed_data(src_node, reason=Cluster.StreamingReason.REMOVED_NODE)
 
         def _get_offset_nodes(offset):
             old_node = old_ring[(old_idx + offset) % len(old_ring)]
@@ -490,14 +500,16 @@ class Cluster(object):
         ))
         assert isinstance(response, messages.StreamCompleteResponse)
 
-    def _request_streamed_data(self, node):
+    def _request_streamed_data(self, node, reason=None):
         """
         requests a node to stream data to the requesting node
         :param node:
+        :param reason: the reason streaming is requested
         """
         if node.node_id == self.node_id: return
         self._streaming_nodes.add(node.node_id)
         self.status = Cluster.Status.STREAMING
+        self._streaming_reason = reason
         response = node.send_message(messages.StreamRequest(self.node_id))
         assert isinstance(response, messages.StreamResponse)
 
