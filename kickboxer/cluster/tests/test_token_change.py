@@ -1,10 +1,8 @@
 import gevent
 from kickboxer.cluster.cluster import Cluster
+from kickboxer.cluster.tests.base import BaseClusterModificationTest
 
-from kickboxer.tests.base import BaseNodeTestCase, LiteralPartitioner
-
-
-class TokenChangeIntegrationTest(BaseNodeTestCase):
+class TokenChangeIntegrationTest(BaseClusterModificationTest):
 
     def test_changing_node_token(self):
         """
@@ -30,40 +28,15 @@ class TokenChangeIntegrationTest(BaseNodeTestCase):
                   from the next node, if the preceding node's id has changed, it
                   should stream data from the preceding node
         """
-        num_nodes = 10
-        tokens = [1000 * i for i in range(num_nodes)]
-        self.create_nodes(num_nodes, tokens=tokens, partitioner=LiteralPartitioner())
-        self.start_cluster()
-
-        # add a bunch of data
-        total_data = {}
-        for i in range(500):
-            node = self.nodes[i % len(self.nodes)]
-            key = str(i * 20)
-            val = str(i)
-            node.cluster.execute_mutation_instruction('set', key, [val], synchronous=True)
-            total_data[key] = val
-        gevent.sleep(0)
-
-        # sanity checks
-        n0 = self.nodes[0]
-        n1 = self.nodes[1]
-
-        for key in n0.store.all_keys():
-            assert int(key) < 1000 or int(key) >= 8000, key
-
-        for key in n1.store.all_keys():
-            assert int(key) < 4000 or int(key) >= 9000, key
-
         # change the token
-        n1.cluster.change_token(6500)
+        self.n1.cluster.change_token(6500)
 
         # wait for streaming to complete
-        if Cluster.Status.STREAMING in [n0.cluster.status, n1.cluster.status]:
+        if Cluster.Status.STREAMING in [self.n0.cluster.status, self.n1.cluster.status]:
             gevent.sleep(0)
 
-        self.assertNotEqual(n0.cluster.status, Cluster.Status.STREAMING)
-        self.assertNotEqual(n1.cluster.status, Cluster.Status.STREAMING)
+        self.assertNotEqual(self.n0.cluster.status, Cluster.Status.STREAMING)
+        self.assertNotEqual(self.n1.cluster.status, Cluster.Status.STREAMING)
 
         # check that all nodes have the correct token
         for i, node in enumerate(self.nodes):
@@ -73,15 +46,15 @@ class TokenChangeIntegrationTest(BaseNodeTestCase):
                 self.assertEquals(node.token, i * 1000)
 
         # check the keys for n0
-        expected = {k for k, v in total_data.items() if 1000 <= int(k) < 2000}
-        all_keys = n1.store.all_keys()
+        expected = {k for k, v in self.total_data.items() if 1000 <= int(k) < 2000}
+        all_keys = self.n1.store.all_keys()
         for key in expected:
             self.assertIn(key, all_keys)
 
         # check the keys for n1, check the keys in sorted order, to make it easier
         # to understand where problems started in the streaming logic
-        expected = sorted(list({int(k) for k, v in total_data.items() if 5000 <= int(k) < 7000}))
-        all_keys = n1.store.all_keys()
+        expected = sorted(list({int(k) for k, v in self.total_data.items() if 5000 <= int(k) < 7000}))
+        all_keys = self.n1.store.all_keys()
         for key in expected:
             self.assertIn(str(key), all_keys)
 
