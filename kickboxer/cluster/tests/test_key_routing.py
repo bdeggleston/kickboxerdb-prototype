@@ -4,6 +4,7 @@ from kickboxer.tests.base import BaseNodeTestCase, LiteralPartitioner
 
 
 class KeyRoutingTest(BaseNodeTestCase):
+    """ test that keys are routed the the proper nodes """
 
     def test_key_routing(self):
         num_nodes = 10

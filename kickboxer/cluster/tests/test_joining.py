@@ -171,13 +171,6 @@ class NodeActivationTest(BaseNodeTestCase):
 
         self.assertEqual(node.cluster.status, Cluster.Status.NORMAL)
 
-    def test_initializing_node_cluster_views(self):
-        """
-        tests that an initializing node has the correct view of the real token
-        ring and it's streaming token ring
-        """
-
-
 
 class RejoinClusterTests(TestCase):
     pass

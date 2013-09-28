@@ -1,6 +1,7 @@
 import gevent
 
 from mock import patch
+
 from kickboxer.cluster.tests.base import BaseClusterModificationTest
 
 

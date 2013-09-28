@@ -37,6 +37,7 @@ class InitializationIntegrationTests(BaseClusterModificationTest):
             actual = store_data[key]
             self.assertEqual(expected, actual.data)
 
+
 class MD5InitializationTests(BaseNodeTestCase):
 
     def test_data_is_properly_transferred_on_initialization(self):
