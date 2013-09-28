@@ -17,6 +17,15 @@ class _TokenContainer(object):
         self.token = token
 
 
+class ClusterException(Exception): pass
+
+
+class ClusterQueryException(ClusterException): pass
+
+
+class ClusterStreamingException(ClusterException): pass
+
+
 class Cluster(object):
     """
     Maintains the local view of the cluster, and coordinates client requests, and
@@ -39,9 +48,7 @@ class Cluster(object):
         TOKEN_CHANGE    = 'TOKEN_CHANGE'
         JOINING_NODE    = 'JOINING_NODE'
         REMOVED_NODE    = 'REMOVED_NODE'
-
-    class ClusterException(Exception): pass
-    class ClusterQueryException(ClusterException): pass
+        DROPPED_NODE    = 'DROPPED_NODE'
 
     default_read_consistency = ConsistencyLevel.QUORUM
     default_write_consistency = ConsistencyLevel.QUORUM
@@ -69,7 +76,6 @@ class Cluster(object):
         self.seed_peers = seed_peers or []
         self.replication_factor = max(0, replication_factor)
 
-        assert isinstance(local_node, LocalNode)
         self.local_node = local_node
         self.nodes = {self.local_node.node_id: self.local_node}
 
@@ -81,7 +87,7 @@ class Cluster(object):
 
         # the set of node ids currently streaming data to this
         # node, if any
-        self._streaming_nodes = set()
+        self._streaming_node = None
 
         # this cluster's view of the token ring
         # before the last token change, to help
@@ -455,7 +461,7 @@ class Cluster(object):
         old_idx = old_ring.index(self.node_id)
         new_idx = new_ring.index(self.node_id)
 
-        def _stream_from_src(src_node):
+        def _stream_from_src(src_node, reason):
             # guarantee that the src node is already
             # aware of the removed node by blocking
             # until it has acknowledged the token change
@@ -466,7 +472,7 @@ class Cluster(object):
                 )
             )
             assert isinstance(response, messages.RemoveNodeResponse)
-            self._request_streamed_data(src_node, reason=Cluster.StreamingReason.REMOVED_NODE)
+            self._request_streamed_data(src_node, reason=reason)
 
         def _get_offset_nodes(offset):
             old_node = old_ring[(old_idx + offset) % len(old_ring)]
@@ -476,10 +482,10 @@ class Cluster(object):
         old_right, new_right = _get_offset_nodes(1)
         if old_right != new_right:
             try:
-                _stream_from_src(removed_node)
+                _stream_from_src(removed_node, Cluster.StreamingReason.REMOVED_NODE)
             except Connection.ClosedException:
                 src_node = self.nodes[new_right]
-                _stream_from_src(src_node)
+                _stream_from_src(src_node, Cluster.StreamingReason.DROPPED_NODE)
 
     def stream_to_node(self, node_id):
         """
@@ -510,20 +516,30 @@ class Cluster(object):
         :param reason: the reason streaming is requested
         """
         if node.node_id == self.node_id: return
-        self._streaming_nodes.add(node.node_id)
+        if self._streaming_node is not None:
+            raise ClusterStreamingException('already streaming from {}'.format(self._streaming_node))
+
+        old_status = self.status
+        self._streaming_node = node
         self.status = Cluster.Status.STREAMING
         self._streaming_reason = reason
-        response = node.send_message(messages.StreamRequest(self.node_id))
-        assert isinstance(response, messages.StreamResponse)
+        try:
+            response = node.send_message(messages.StreamRequest(self.node_id))
+            assert isinstance(response, messages.StreamResponse)
+        except Connection.ClosedException:
+            self._streaming_node = None
+            self.status = old_status
+            self._streaming_reason = None
+            raise
 
     def _end_streaming(self, node_id):
         """
         handles a notification that a node is finished streaming data to this node
         :param node_id:
         """
-        self._streaming_nodes.remove(node_id)
-        if len(self._streaming_nodes) == 0:
-            self.status = Cluster.Status.NORMAL
+        self._streaming_node = None
+        self._streaming_reason = None
+        self.status = Cluster.Status.NORMAL
 
     def _receive_streamed_values(self, data):
         for d in data:
@@ -569,8 +585,15 @@ class Cluster(object):
         :param args:
         """
         if instruction not in self.store.retrieval_instructions:
-            raise Cluster.ClusterQueryException("unknown retrieval instruction: {}".format(instruction))
-        return getattr(self.store, instruction)(key, *args)
+            raise ClusterQueryException("unknown retrieval instruction: {}".format(instruction))
+
+        if self.status == Cluster.Status.INITIALIZING:
+            raise ClusterQueryException('cannot query an initializing node')
+        elif self.status == Cluster.Status.STREAMING:
+            # forward the query to the streaming node
+            return self._streaming_node.execute_retrieval_instruction(instruction, key, args)
+        else:
+            return getattr(self.store, instruction)(key, *args)
 
     def _finalize_retrieval(self, instruction, key, args, gpool, greenlets):
         """
@@ -650,8 +673,17 @@ class Cluster(object):
         :param timestamp:
         """
         if instruction not in self.store.mutation_instructions:
-            raise Cluster.ClusterQueryException("unknown mutation instruction: {}".format(instruction))
-        return getattr(self.store, instruction)(key, *args, timestamp=timestamp)
+            raise ClusterQueryException("unknown mutation instruction: {}".format(instruction))
+
+        if self.status == Cluster.Status.INITIALIZING:
+            raise ClusterQueryException('cannot query an initializing node')
+        elif self.status == Cluster.Status.STREAMING:
+            # execute write locally
+            getattr(self.store, instruction)(key, *args, timestamp=timestamp)
+            # then mirror to the streaming node
+            return self._streaming_node.execute_mutation_instruction(instruction, key, args, timestamp)
+        else:
+            return getattr(self.store, instruction)(key, *args, timestamp=timestamp)
 
     def _finalize_mutation(self, instruction, key, args, timestamp, gpool, greenlets):
         """
