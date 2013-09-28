@@ -1,7 +1,9 @@
 import time
 from unittest import TestCase
+import uuid
 
 import gevent
+from mock import MagicMock
 
 from kickboxer.cluster.cluster import Cluster
 from kickboxer.partitioner.base import BasePartitioner
@@ -104,3 +106,25 @@ class LiteralPartitioner(BasePartitioner):
     @classmethod
     def get_key_token(cls, key):
         return int(key)
+
+
+class ContainsAnything(object):
+    def __contains__(self, _):
+        return True
+
+
+class MockStore(MagicMock):
+    retrieval_instructions = ContainsAnything()
+    mutation_instructions = ContainsAnything()
+
+
+class MockLocalNode(object):
+    def __init__(self):
+        super(MockLocalNode, self).__init__()
+        self.node_id = uuid.uuid4()
+        self.store = MockStore()
+
+
+class MockRemoteNode(MagicMock):
+    pass
+
