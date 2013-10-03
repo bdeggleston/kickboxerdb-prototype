@@ -53,6 +53,10 @@ class Cluster(object):
     default_read_consistency = ConsistencyLevel.QUORUM
     default_write_consistency = ConsistencyLevel.QUORUM
 
+    # the time to wait on responses to queries from
+    # other nodes before timing out
+    response_timeout = 10
+
     def __init__(self,
                  local_node,
                  partitioner,
@@ -88,6 +92,7 @@ class Cluster(object):
         # the set of node ids currently streaming data to this
         # node, if any
         self._streaming_node = None
+        """ :type: RemoteNode """
 
         # this cluster's view of the token ring
         # before the last token change, to help
@@ -607,7 +612,7 @@ class Cluster(object):
         :param greenlets:
         :type greenlets: list of Greenlet
         """
-        gpool.join(timeout=10)
+        gpool.join(timeout=self.response_timeout)
 
         # do we want to do anything with the exception? (g.exception)
         result_map = {g.node.node_id: g.value for g in greenlets}
@@ -629,7 +634,6 @@ class Cluster(object):
         """
         results = Queue()
         nodes = self.get_nodes_for_key(key)
-        response_timeout = 10.0
 
         def _execute(node):
             if node.node_id == self.node_id:
@@ -652,7 +656,7 @@ class Cluster(object):
             Cluster.ConsistencyLevel.ALL: len(nodes)
         }[consistency]
 
-        values = [results.get(timeout=response_timeout) for _ in range(num_replies)]
+        values = [results.get(timeout=self.response_timeout) for _ in range(num_replies)]
         # resolve any differences
         result = getattr(self.store, 'resolve_{}'.format(instruction))(key, args, values)
 
@@ -697,7 +701,7 @@ class Cluster(object):
         :type greenlets: list of Greenlet
         """
         #TODO: distribute hints for nonresponsive nodes locally and to other nodes
-        gpool.join(timeout=10)
+        gpool.join(timeout=self.response_timeout)
 
     def execute_mutation_instruction(self, instruction, key, args, timestamp=None, consistency=None, synchronous=False):
         """
@@ -710,7 +714,7 @@ class Cluster(object):
         :return:
         """
         timestamp = timestamp or datetime.utcnow()
-        response_timeout = 10.0
+        response_timeout = self.response_timeout
 
         results = Queue()
         nodes = self.get_nodes_for_key(key)
